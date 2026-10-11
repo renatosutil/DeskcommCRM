@@ -12,6 +12,12 @@
 # O container é SEMPRE derrubado no EXIT (sucesso ou falha).
 set -euo pipefail
 
+# Diagnóstico do fork: nunca anota comando, URI, credencial ou saída do banco.
+# Só acrescenta contexto à falha existente; não intercepta/ignora o exit original.
+if [ "${GITHUB_ACTIONS:-}" = true ]; then
+  trap 'rb_db_exit=$?; printf "::error file=scripts/test-db.sh,line=%s::Falha do teste isolado de banco; codigo %s.\n" "$LINENO" "$rb_db_exit" >&2' ERR
+fi
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ⛔ O `vitest` TEM DE EXISTIR, e a conferência vem ANTES de subir o container.

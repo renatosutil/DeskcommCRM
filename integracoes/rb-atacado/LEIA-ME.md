@@ -21,3 +21,7 @@ Interface atual permanece inalterada. Novos argumentos/guardas são alteração
 de código, não configuração disponível na interface. Aprovação ainda é utilitário
 interativo SSH preparado; não executar antes de configurar/validar a integração.
 Reversão: não implantar; versões de preparação anteriores preservadas.
+
+CI do fork: E2E e build/tamanho passam a aceitar PRs para rb-base-v1.76.0.
+Gatilhos de push em main, tags e publicação de imagens permanecem intactos.
+PR #1 é rascunho de validação; não fazer merge nem implantar.

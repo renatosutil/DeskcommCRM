@@ -2,7 +2,7 @@ name: perf
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, rb-base-v1.76.0]
   push:
     branches: [main]
 

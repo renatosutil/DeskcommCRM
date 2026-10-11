@@ -25,3 +25,10 @@ Reversão: não implantar; versões de preparação anteriores preservadas.
 CI do fork: E2E e build/tamanho passam a aceitar PRs para rb-base-v1.76.0.
 Gatilhos de push em main, tags e publicação de imagens permanecem intactos.
 PR #1 é rascunho de validação; não fazer merge nem implantar.
+
+Compatibilidade CI do fork: CONFERENCIA_KIT_RELEASE=v1.76.0 somente no PR
+para rb-base-v1.76.0; tags v1.76.0 e v1.63.0 são buscadas do upstream apenas
+no runner. O commit da v1.76.0 é conferido. Nenhuma tag é enviada ao fork.
+Teste de atendimento assistido passa a exigir falha fechada em erro/ausência
+de consulta, preservando o controle positivo. Novo destino de Storage foi
+registrado com UUIDs validados, SKU decimal e alfabeto do Storage.

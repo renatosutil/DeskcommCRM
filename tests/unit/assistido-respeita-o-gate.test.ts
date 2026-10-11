@@ -124,10 +124,19 @@ describe('o assistido não rascunha em conversa que já tem dono', () => {
     }));
   });
 
-  it('consulta de elegibilidade quebrada degrada ABERTO — o assistido não emudece por erro de infra', async () => {
+  it('consulta de elegibilidade quebrada bloqueia antes de gastar IA', async () => {
     mocks.elegibilidade.mockRejectedValue(new Error('connection terminated'));
     const p = pool();
     await createInboundTurnHandler(deps)(job as never, p as never, { workerId: 'worker' });
-    expect(mocks.draft).toHaveBeenCalledOnce();
+    expect(mocks.draft).not.toHaveBeenCalled();
+    expect(mocks.operation).not.toHaveBeenCalled();
+  });
+
+  it('conversa não localizada bloqueia antes de gastar IA', async () => {
+    mocks.elegibilidade.mockResolvedValue(null);
+    const p = pool();
+    await createInboundTurnHandler(deps)(job as never, p as never, { workerId: 'worker' });
+    expect(mocks.draft).not.toHaveBeenCalled();
+    expect(mocks.operation).not.toHaveBeenCalled();
   });
 });

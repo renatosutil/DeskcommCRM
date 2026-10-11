@@ -1,3 +1,5 @@
+import { prepararOrcamentoRb, referenciaRb } from '@/lib/mcp/tools/rb-atacado/entrega';
+import { prepararFotoMega } from '@/lib/mcp/tools/rb-atacado/foto';
 import { prospectingConversationContext } from "@/lib/prospecting/context";
 import { setExecutionAgentOperation } from '@/lib/atendimento/fronteira-server';
 import { TIPOS_DE_CASO, TIPOS_DE_CASO_PARA_A_IA } from "@/lib/ai/case-copy";
@@ -225,7 +227,7 @@ import type { DependenciasDoPonto } from '@/lib/ai/decisao/ponto';
 import { perguntarUrgenciaAoJev, registrarUrgenciaDoJev } from '@/lib/ai/decisao/urgencia';
 import { fusoDaOrganizacao } from './fuso-da-org';
 import { renderAgora } from '@/lib/tempo/agora';
-import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
+import { consultarElegibilidadeConfirmada as decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-confirmada';
 import {
   anotarUltimaInboundVista,
   respostaFicouObsoleta,
@@ -249,6 +251,10 @@ export const AGENT_TOOL_DEFS = {
       'Envia UMA mensagem de WhatsApp ao lead desta conversa. É o ÚNICO jeito de falar com o lead; texto fora desta tool nunca é enviado.',
     inputSchema: z.object({
       body: z.string().min(1).describe('corpo da mensagem, em pt-br, pronto para envio'),
+      orcamento_mega: referenciaRb.optional().describe('Envia orçamento exato aprovado pela RB Atacado. O código renderiza o preço final e confere a aprovação; não calcule nem escreva preço no body.'),
+      mega_codigo: z.string().regex(/^\d{1,12}$/).optional().describe(
+        'Código exato retornado por rb_buscar_perfumes para enviar a foto original e uma legenda verificada, sem preço. Não use junto com produto_codigo.',
+      ),
       produto_codigo: z
         .string()
         .optional()
@@ -1924,6 +1930,10 @@ async function executarTurnoDoAgente(
         agora: clock(),
         ttlMs: deps.knobs.allowlistTtlMs ?? ALLOWLIST_TTL_MS_PADRAO,
       });
+      if (!elegib.consultaConfirmada) {
+        runLog.warn('elegibilidade indisponível — turno bloqueado');
+        return;
+      }
       if (elegib !== null && !elegib.permite) {
         runLog.info('turno pulado — conversa não elegível para IA', {
           kind: liveJob().kind,
@@ -1948,10 +1958,9 @@ async function executarTurnoDoAgente(
             });
           });
       }
-    } catch (err) {
-      runLog.warn('checagem de elegibilidade falhou no turno — seguindo', {
-        error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
-      });
+    } catch {
+      runLog.warn('checagem de elegibilidade falhou — turno bloqueado');
+      return;
     }
   }
 
@@ -3131,13 +3140,27 @@ async function executarTurnoDoAgente(
     }),
     send_message: tool({
       ...AGENT_TOOL_DEFS.send_message,
-      execute: async ({ body, produto_codigo }) => {
+      execute: async ({ body, produto_codigo, mega_codigo, orcamento_mega }) => {
         // CORPO VAZIO NÃO SAI. Medido ao vivo (2026-09-19): o `gpt-4o-mini`
         // chamou `send_message` várias vezes com corpo que virou vazio e o
         // WhatsApp do cliente recebeu bolhas em branco. O schema garante
         // min(1) no argumento, mas um `\n`/espaço passa e vira vazio depois do
         // trim/gates. Recusar aqui devolve ao modelo para reescrever — nunca
         // manda bolha em branco.
+        if (orcamento_mega !== undefined) {
+          if (preview || mega_codigo !== undefined || produto_codigo !== undefined ||
+            !agentConfig?.toolIds.includes('rb_consultar_orcamento')) {
+            return { ok:false,error:{code:'orcamento_rb_recusado',message:'Orçamento não autorizado neste turno.'} };
+          }
+          try {
+            const preparado=await prepararOrcamentoRb({
+              organizationId:tenantId,contatoDoTurno:leadId,supabase:deps.crmCfg.supabase,
+            },orcamento_mega);
+            body=preparado.body;
+          } catch {
+            return { ok:false,error:{code:'orcamento_rb_recusado',message:'O valor precisa de confirmação da RB Atacado. Não informe preço alternativo.'} };
+          }
+        }
         if (body.trim() === '') {
           return {
             ok: false,
@@ -3218,6 +3241,24 @@ async function executarTurnoDoAgente(
         // segue (degradar para só texto). Ver `agent/fotos-do-produto.ts`.
         let fotosDoProduto: FotoParaEnvio[] = [];
         let fotosQueFaltaram = 0;
+        if (mega_codigo !== undefined) {
+          if (preview || produto_codigo !== undefined ||
+            !agentConfig?.toolIds.includes('rb_buscar_perfumes')) {
+            return { ok: false, error: { code: 'foto_mega_nao_autorizada',
+              message: 'A foto da Mega não está autorizada neste turno.' } };
+          }
+          const preparadaMega = await prepararFotoMega({
+            organizationId: tenantId, contatoDoTurno: leadId,
+            sourceJobId: liveJob().id, supabase: deps.crmCfg.supabase,
+          }, { conversationId: input.conversationId, codigo: mega_codigo });
+          if (!preparadaMega.ok) {
+            return { ok: false, error: { code: 'foto_mega_nao_confirmada',
+              message: 'Não foi possível confirmar a foto desse produto. Não envie outra imagem nem invente preço.' } };
+          }
+          fotosDoProduto = [preparadaMega.foto];
+          body = preparadaMega.legenda;
+        }
+
         if (produto_codigo !== undefined && produto_codigo.trim() !== '' && !preview) {
           const preparadas = await prepararFotosDoProduto(pool, copiarFotoNoStorage(runLog), {
             tenantId,
@@ -3402,6 +3443,7 @@ async function executarTurnoDoAgente(
                   seq,
                   conversationId: input.conversationId,
                   body: corpo,
+                  ...(orcamento_mega ? { rbOrcamento: orcamento_mega } : {}),
                   ...(media ? { media } : {}),
                 });
               };
@@ -3416,7 +3458,7 @@ async function executarTurnoDoAgente(
                 enviarFoto: (foto, legenda) => enviar(legenda, foto),
                 enviarTexto: (texto) =>
                   sendInBubbles(texto, {
-                    enabled: agentConfig?.splitMessages ?? false,
+                    enabled: orcamento_mega ? false : (agentConfig?.splitMessages ?? false),
                     maxChars: agentConfig?.splitMaxChars ?? 600,
                     // O teto do turno vale para as bolhas: o que passa dele vai junto na última.
                     maxBubbles: Math.max(1, maxSendsPerTurn - seq),

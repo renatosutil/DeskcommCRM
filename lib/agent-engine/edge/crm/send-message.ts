@@ -56,6 +56,7 @@ export interface SendMessageInput {
   seq: number;
   conversationId: string;
   body: string;
+  rbOrcamento?: { codigo: string; quantidade: number };
   /**
    * Presente = envio de TEMPLATE. O `body` continua sendo o texto RENDERIZADO — é
    * ele que entra no hash de idempotência e é ele que os gates de conteúdo avaliaram.
@@ -94,7 +95,7 @@ export function corpoDoEnvio(
         : { type: 'text' as const }),
     // Foto sem legenda vai sem `body`: o schema do envio pede corpo não vazio.
     ...(input.body !== '' || !input.media ? { body: input.body } : {}),
-    metadata: { idempotency_key: idempotencyKey },
+    metadata: { idempotency_key: idempotencyKey, ...(input.rbOrcamento ? { rb_orcamento: input.rbOrcamento } : {}) },
   };
 }
 

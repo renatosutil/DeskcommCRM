@@ -1,0 +1,32 @@
+import { describe, it, beforeEach } from "vitest";
+import assert from "node:assert/strict";
+import { consultarOrcamento } from "../../lib/mcp/tools/rb-atacado/cliente";
+import type { McpContext } from "../../lib/mcp/types";
+const org="11111111-1111-4111-8111-111111111111", contact="22222222-2222-4222-8222-222222222222",other="33333333-3333-4333-8333-333333333333";
+const config={enabled:true as const,organization_id:org,contact_id:contact,authorization_token:"a".repeat(64)};
+const base={produto:{codigo:"123",nome:"Perfume teste EDT 100 ml",marca:"Marca",versao:"EDT",variante:null,volume_ml:100,apresentacao:"frasco",imagem_url:"https://resource.megaeletronicos.com/teste.webp",imagem_validada:true},quantidade:2,moeda:"BRL",situacao:"aprovado",preco_unitario_cents:7088,subtotal_cents:14176,quantidade_em_estoque:"nao_informada",disponibilidade_na_consulta:"disponivel",compra_reserva_pagamento_confirmados:false,valido_ate_utc:"2026-10-11T21:00:00Z"};
+let calls=0;let payload:unknown=base;let row:unknown;let error:unknown=null;
+const chain={select(){return this;},eq(){return this;},async maybeSingle(){return {data:row,error};}};
+const ctx={organizationId:org,contatoDoTurno:contact,supabase:{from(){return chain;}}} as unknown as McpContext;
+const deps={config:async()=>config,now:()=>Date.parse("2026-10-11T20:00:00Z"),fetch:(async(url:unknown,init:RequestInit)=>{
+ calls++;assert.equal(url,"http://deskcommcrm-mega-vpn:40100/v1/orcamento");assert.equal(init.redirect,"error");assert.deepEqual(JSON.parse(String(init.body)),{codigo:"123",quantidade:2});return new Response(JSON.stringify(payload));
+}) as typeof fetch};
+const ask=()=>consultarOrcamento({codigo:"123",quantidade:2},ctx,deps);
+describe("Orçamento aprovado: fronteira da ferramenta",()=>{
+ beforeEach(()=>{calls=0;payload=base;error=null;row={id:contact,kind:"person",is_blocked:false,is_anonymized:false};});
+ it("retorna o valor final aprovado e subtotal exato",async()=>{assert.deepEqual(await ask(),base);assert.equal(calls,1);});
+ it("outro contato é recusado antes da rede",async()=>{await consultarOrcamento({codigo:"123",quantidade:2},{...ctx,contatoDoTurno:other},deps);assert.equal(calls,0);});
+ it("outro tenant é recusado antes da rede",async()=>{await consultarOrcamento({codigo:"123",quantidade:2},{...ctx,organizationId:other},deps);assert.equal(calls,0);});
+ it("sem contato confiável não consulta",async()=>{await consultarOrcamento({codigo:"123",quantidade:2},{...ctx,contatoDoTurno:undefined},deps);assert.equal(calls,0);});
+ it("erro de banco não libera consulta",async()=>{error={message:"private"};await ask();assert.equal(calls,0);});
+ it("grupo não consulta",async()=>{row={id:contact,kind:"whatsapp_group",is_blocked:false,is_anonymized:false};await ask();assert.equal(calls,0);});
+ it("não recebe preço pelo argumento",async()=>{const r=await consultarOrcamento({codigo:"123",quantidade:0},ctx,deps);assert.equal((r as {permitido?:boolean}).permitido,false);assert.equal(calls,0);});
+ it("subtotal divergente não é orçamento",async()=>{payload={...base,subtotal_cents:1};assert.equal((await ask() as {permitido?:boolean}).permitido,false);});
+ it("produto diferente não é orçamento",async()=>{payload={...base,produto:{...base.produto,codigo:"124"}};assert.equal((await ask() as {permitido?:boolean}).permitido,false);});
+ it("quantidade diferente não é orçamento",async()=>{payload={...base,quantidade:1,subtotal_cents:7088};assert.equal((await ask() as {permitido?:boolean}).permitido,false);});
+ it("expiração é checada no retorno",async()=>{payload={...base,valido_ate_utc:"2026-10-11T19:59:00Z"};assert.equal((await ask() as {permitido?:boolean}).permitido,false);});
+ it("preço pendente não é liberado",async()=>{payload={...base,situacao:"pendente_de_consulta_ou_aprovacao"};assert.equal((await ask() as {permitido?:boolean}).permitido,false);});
+ it("indisponibilidade não é liberada",async()=>{payload={...base,disponibilidade_na_consulta:"indisponivel"};assert.equal((await ask() as {permitido?:boolean}).permitido,false);});
+ it("custo e cotação extras ficam fora do modelo",async()=>{payload={...base,interno:{custo_usd:10,cotacao:5,margem:35},produto:{...base.produto,custo:10}};const r=JSON.stringify(await ask());assert(!r.includes('custo'));assert(!r.includes('cotacao'));assert(!r.includes('margem'));assert(!r.includes(config.authorization_token));});
+ it("erro de rede não expõe a credencial interna",async()=>{const r=await consultarOrcamento({codigo:"123",quantidade:2},ctx,{...deps,fetch:(async()=>{throw new Error(config.authorization_token);}) as typeof fetch});assert(!JSON.stringify(r).includes(config.authorization_token));});
+});

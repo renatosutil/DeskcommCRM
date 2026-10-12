@@ -8,3 +8,5 @@ Ferramentas opcionais de pesquisa da Mega e orçamento comercial aprovado, com i
 A validação Unicode de nomes permanece no servidor; os esquemas das ferramentas enviados ao provedor usam somente expressões compatíveis com JSON Schema. A regressão cobre consulta, orçamento e envio sem afrouxar a recusa de dados pessoais.
 
 O cliente pode recusar todas as fotos. A escolha é seguida de confirmação de versão, volume e quantidade como interesse para orçamento, sem confirmação de compra; a cotação continua exigindo a data do dia.
+
+A recusa das opções usa uma confirmação neutra, evitando um falso positivo na proteção nativa contra promessas comerciais; todas as proteções continuam ativas.

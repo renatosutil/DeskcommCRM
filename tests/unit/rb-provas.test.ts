@@ -117,7 +117,7 @@ describe("escopo Supabase da derivação antes de IA",()=>{
 describe('escolha de perfumes sem obrigação de compra',()=>{
  it('oferece explicitamente recusar todas as opções',()=>{
   expect(textoRespostaRb('escolher_opcao')).toMatch(/não quiser nenhuma/);
-  expect(textoRespostaRb('nenhuma_opcao')).toMatch(/não vou incluir essas opções/);
+  expect(textoRespostaRb('nenhuma_opcao')).toMatch(/Nenhuma dessas opções foi escolhida/);
  });
  it('confirma versão, volume e quantidade somente como interesse',()=>{
   const body=textoRespostaRb('confirmar_interesse');

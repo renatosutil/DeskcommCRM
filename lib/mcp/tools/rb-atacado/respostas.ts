@@ -9,7 +9,7 @@ export const RESPOSTAS_RB = {
  perguntar_quantidade:'Qual quantidade você deseja?',
  pedir_foto:'Pode enviar uma foto mais nítida da frente e do verso do frasco ou da caixa, mostrando o nome e os ml?',
  escolher_opcao:'Alguma dessas opções é o perfume que você procura? Se não quiser nenhuma, pode me dizer.',
- nenhuma_opcao:'Tudo bem, não vou incluir essas opções. Se quiser procurar outro perfume, me diga.',
+ nenhuma_opcao:'Tudo bem. Nenhuma dessas opções foi escolhida. Se quiser outro perfume, me diga.',
  confirmar_interesse:'Confirma esse perfume, nessa versão e volume, e a quantidade informada para eu consultar o orçamento? Isso não confirma compra.',
  preco_pendente:'O valor precisa de consulta e aprovação da RB Atacado antes de preparar o orçamento.',
  consulta_indisponivel:'Não consegui confirmar o valor e a disponibilidade agora. O orçamento fica pendente de consulta pela RB Atacado.',

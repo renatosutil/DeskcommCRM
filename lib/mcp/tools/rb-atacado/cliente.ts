@@ -161,7 +161,7 @@ export async function consultarEstimativa(input:{codigo:string;quantidade?:numbe
   if(error||!contato||contato.id!==c.contact_id||contato.kind==="whatsapp_group"||
    contato.is_blocked!==false||contato.is_anonymized!==false||contato.is_personal!==false)return recusado("contato_indisponivel");
   const quantidade=pedido.data.quantidade??null;
-  const r=await deps.fetch("http://deskcommcrm-mega-vpn:40100/v1/estimativa",{
+  const r=await deps.fetch(new URL("/v1/estimativa",ENDPOINT).href,{
    method:"POST",redirect:"error",signal:AbortSignal.timeout(120_000),
    headers:{"Content-Type":"application/json",Authorization:`Bearer ${c.authorization_token}`},
    body:JSON.stringify({codigo:pedido.data.codigo,quantidade}),

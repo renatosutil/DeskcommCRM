@@ -6,7 +6,7 @@ Não muda baseline, provedor/modelo, proxy, sessão WhatsApp, telefone permitido
 IA › Agentes › agente › Configuração: prompt, ferramentas e modelo; Histórico: versões.
 Salvar grava rascunho. Publicar torna a versão ativa pelo RPC nativo.
 As ferramentas rb_buscar_perfumes e rb_consultar_orcamento são selecionadas individualmente.
-Não entram nos pacotes gerais nem removem ferramentas nativas.
+Pertencem ao pacote próprio Orçar perfumes na Mega, sem mudar os pacotes gerais ou remover ferramentas nativas.
 Respostas RB são enums montados pelo servidor; texto livre deste agente não é enviado.
 Fotos levam nome, concentração, ml e apresentação verificados, sem preço pendente.
 Preços só são montados por ferramenta determinística com aprovação comercial válida.

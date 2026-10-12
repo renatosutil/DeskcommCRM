@@ -28,7 +28,8 @@ export type ToolBundle =
   | "reter"
   | "escalar"
   | "organizar"
-  | "evoluir";
+  | "evoluir"
+  | "perfumes_rb";
 
 export interface PacoteMeta {
   id: ToolBundle;
@@ -81,6 +82,12 @@ export const PACOTES: ReadonlyArray<PacoteMeta> = [
     explicacao:
       "O agente consulta o que a empresa já sabe, aprende com os atendimentos e sugere melhorias para você aprovar.",
     ordem: 6,
+  },
+  {
+    id: "perfumes_rb",
+    rotulo: "Orçar perfumes na Mega",
+    explicacao: "O agente mostra perfumes disponíveis na Mega e confere o orçamento aprovado. Requer configuração privada do contato de teste e aprovação comercial.",
+    ordem: 7,
   },
 ] as const;
 

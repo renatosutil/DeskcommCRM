@@ -40,3 +40,11 @@ describe.sequential("RB Mega: consulta restrita sem precos", () => {
  test("network_exception_sanitized", async () => { const r = await consultarMega({ perfume: "Sauvage" }, ctx, { ...deps, fetch: (async () => { throw new Error(config.authorization_token); }) as typeof fetch }); assert(!JSON.stringify(r).includes(config.authorization_token)); assert.equal((r as { permitido?: boolean }).permitido, false); });
  test("partial_search_not_all_out_of_stock", async () => { payload = { status: "sem_estoque_nos_anuncios_verificados", opcoes: [], cobertura_integral_catalogo: false, detalhes_consultados_integralmente: false }; const r = await consultarMega({ perfume: "Sauvage" }, ctx, deps); assert.equal((r as { permitido?: boolean }).permitido, false); });
 });
+
+describe("pacote próprio de perfumes",()=>{
+ it("as duas capacidades entram somente no pacote próprio",async()=>{
+  const {TOOLS_RB_ATACADO}=await import("../../lib/mcp/tools/catalogo/rb-atacado");
+  expect(TOOLS_RB_ATACADO).toHaveLength(2);
+  for(const tool of TOOLS_RB_ATACADO)expect(tool.pacotes).toEqual(["perfumes_rb"]);
+ });
+});

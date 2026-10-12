@@ -40,7 +40,7 @@ describe('estimativa verificada sem aprovar compra',()=>{
   expect(body.length).toBeLessThanOrEqual(1024);
   expect(body).toContain('Preço estimado: R$ 613,28 por unidade.');
   expect(body).toContain('aprovação');expect(body).toContain('sua confirmação antes do fechamento');
-  expect(body).not.toMatch(/Subtotal|Valor aprovado|USD|5%|35%|custo de compra/);
+  expect(body).not.toMatch(/Subtotal|Valor aprovado|USD|\d+\s*%|custo de compra/);
  });
  it('subtotal inclui confirmação do item e da quantidade na mesma mensagem',()=>{
   const body=textoEstimativaRb({...base,quantidade:2,subtotal_cents:122656});

@@ -7,15 +7,15 @@ class Test(unittest.TestCase):
  def setUp(self):
   self.now=datetime(2026,10,12,16,tzinfo=timezone.utc)
   self.item={'codigo':'123','nome':'Perfume teste EDT 100 ml','marca':'Marca','versao':'EDT','variante':None,'volume_ml':100,'apresentacao':'não confirmada','imagem_url':'https://resource.megaeletronicos.com/teste.webp','disponibilidade':'disponivel'}
-  self.data={'price':'85'};self.offers={'priceCurrency':'USD','price':'85'}
-  self.fx='<div class="cotacao-real">R$ 5,09</div><div class="atualizacao-cotacao">12 de outubro de 2026</div>'
+  self.data={'price':'10'};self.offers={'priceCurrency':'USD','price':'10'}
+  self.fx='<div class="cotacao-real">R$ 5,00</div><div class="atualizacao-cotacao">12 de outubro de 2026</div>'
  def quote(self,q=None):
   with patch.object(e.mega,'extract',return_value=self.item),patch.object(e.mega,'primary_data',return_value=self.data),patch.object(e.mega,'structured_product',return_value={'offers':self.offers}):
-   return e.preparar('https://www.megaeletronicos.com/producto/123/perfume-teste',q,fetch=lambda u,h:self.fx if u==e.o.FX_URL else 'fixture',now=self.now,politica=(Decimal('1.05'),Decimal('1.35')))
+   return e.preparar('https://www.megaeletronicos.com/producto/123/perfume-teste',q,fetch=lambda u,h:self.fx if u==e.o.FX_URL else 'fixture',now=self.now,politica=(Decimal('1.02'),Decimal('1.20')))
  def test_unit_without_customer_quantity(self):
-  x=self.quote();self.assertEqual(x['preco_unitario_cents'],61328);self.assertIsNone(x['quantidade']);self.assertIsNone(x['subtotal_cents']);self.assertEqual(x['situacao'],'estimativa')
+  x=self.quote();self.assertEqual(x['preco_unitario_cents'],6120);self.assertIsNone(x['quantidade']);self.assertIsNone(x['subtotal_cents']);self.assertEqual(x['situacao'],'estimativa')
  def test_quantity_is_only_subtotal(self):
-  x=self.quote(10);self.assertEqual(x['subtotal_cents'],613280);self.assertEqual(x['quantidade_em_estoque'],'nao_informada')
+  x=self.quote(10);self.assertEqual(x['subtotal_cents'],61200);self.assertEqual(x['quantidade_em_estoque'],'nao_informada')
  def test_no_owner_approval_or_purchase(self):
   x=self.quote(2);self.assertTrue(x['fechamento_pendente_aprovacao']);self.assertFalse(x['compra_reserva_pagamento_confirmados'])
  def test_no_private_pricing_output(self):
@@ -25,7 +25,7 @@ class Test(unittest.TestCase):
   self.item['disponibilidade']='indisponivel'
   with self.assertRaises(e.o.Recusa):self.quote()
  def test_conflicting_price_refused(self):
-  self.offers['price']='86'
+  self.offers['price']='11'
   with self.assertRaises(e.o.Recusa):self.quote()
  def test_non_usd_refused(self):
   self.offers['priceCurrency']='BRL'

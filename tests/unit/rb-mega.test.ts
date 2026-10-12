@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it as test } from "vitest";
+import { z } from "zod";
+import { rbBuscarPerfumes, rbConsultarOrcamento } from "../../lib/mcp/tools/rb-atacado";
+import { AGENT_TOOL_DEFS } from "../../lib/agent-engine/agent/inbound-turn";
 import { consultarMega, termoDePerfume } from "../../lib/mcp/tools/rb-atacado/cliente";
 import type { McpContext } from "../../lib/mcp/types";
 const org = "11111111-1111-4111-8111-111111111111";
@@ -47,4 +50,23 @@ describe("pacote próprio de perfumes",()=>{
   assert.equal(TOOLS_RB_ATACADO.length,2);
   for(const tool of TOOLS_RB_ATACADO)assert.deepEqual(tool.pacotes,["perfumes_rb"]);
  });
+});
+
+
+test("RB tool schemas use provider-compatible patterns without weakening server validation", () => {
+ for (const schema of [z.object(rbBuscarPerfumes.inputSchema), z.object(rbConsultarOrcamento.inputSchema), AGENT_TOOL_DEFS.send_message.inputSchema]) {
+  const json = z.toJSONSchema(schema);
+  function visit(value: unknown): void {
+   if (!value || typeof value !== "object") return;
+   for (const [key, item] of Object.entries(value)) {
+    if (key === "pattern" && typeof item === "string") {
+     assert(!/\\[pP]\{/.test(item), "Provider cannot interpret Unicode property escapes");
+    }
+    visit(item);
+   }
+  }
+  visit(json);
+ }
+ for (const name of ["Sauvage", "Éclat d'Arpège 100 ml", "عطر 100 ml"]) assert(termoDePerfume.safeParse(name).success);
+ for (const name of ["https://site.invalid", "nome@site.invalid", "+5541999999999", "Sauvage; SELECT 1", "123456789", "Sauvage 💳"]) assert(!termoDePerfume.safeParse(name).success);
 });

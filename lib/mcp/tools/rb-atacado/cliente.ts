@@ -7,7 +7,8 @@ import type { McpContext } from "../../types";
 const CONFIG_PATH = "/opt/rb-atacado/config.json";
 const ENDPOINT = "http://deskcommcrm-mega-vpn:40100/v1/buscar";
 export const termoDePerfume = z.string().min(2).max(120)
-  .regex(/^[\p{L}\p{N} .'-]+$/u)
+  // Unicode validation stays server-side: provider JSON Schema regexes reject \p escapes.
+  .refine((s) => /^[\p{L}\p{N} .'-]+$/u.test(s), "Use somente identificação do perfume.")
   .refine((s) => !/\d{6,}/u.test(s), "Use somente identificação do perfume.")
   .refine((s) => /\p{L}/u.test(s), "Use somente identificação do perfume.");
 export const configSchema = z.object({

@@ -38,4 +38,14 @@ class FastTest(unittest.TestCase):
         with self.assertRaises(SystemExit):m.execute({'commands':[['fixture1'],['fixture2']]},run)
         self.assertEqual(len(calls),1)
     def test_deletion_covered_by_path(self):self.assertTrue(m.planejar(['lib/mcp/tools/rb-atacado/provas.ts'])['needs_node'])
+    def test_test_phase_does_not_repeat_typecheck(self):
+        calls=[]
+        def run(cmd,**kw):calls.append(cmd);return subprocess.CompletedProcess(cmd,0)
+        m.execute({'commands':[['python3','fixture.py'],['pnpm','typecheck']]},run,fase='testes')
+        self.assertEqual(calls,[['python3','fixture.py']])
+    def test_type_phase_only_checks_types(self):
+        calls=[]
+        def run(cmd,**kw):calls.append(cmd);return subprocess.CompletedProcess(cmd,0)
+        m.execute({'commands':[['python3','fixture.py'],['pnpm','typecheck']]},run,fase='tipos')
+        self.assertEqual(calls,[['pnpm','typecheck']])
 if __name__=='__main__':unittest.main()

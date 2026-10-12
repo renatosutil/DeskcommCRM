@@ -41,16 +41,18 @@ def changed(base):
     raw=subprocess.check_output(['git','diff','--name-only','-z',sha,'--'],cwd=ROOT)
     return [p for p in raw.decode().split('\0') if p]
 
-def execute(plan,run=subprocess.run):
+def execute(plan,run=subprocess.run,fase='todos'):
     for cmd in plan['commands']:
+        tipo=cmd==['pnpm','typecheck']
+        if fase=='testes' and tipo or fase=='tipos' and not tipo:continue
         result=run(cmd,cwd=ROOT)
         if result.returncode:raise SystemExit(result.returncode)
 
 if __name__=='__main__':
-    ap=argparse.ArgumentParser();ap.add_argument('--base',default='origin/rb-atacado-v1.76.0');ap.add_argument('--executar',action='store_true');ap.add_argument('--github-output',action='store_true');args=ap.parse_args()
+    ap=argparse.ArgumentParser();ap.add_argument('--base',default='origin/rb-atacado-v1.76.0');ap.add_argument('--executar',action='store_true');ap.add_argument('--github-output',action='store_true');ap.add_argument('--fase',choices=['todos','testes','tipos'],default='todos');args=ap.parse_args()
     plan=planejar(changed(args.base))
     if args.github_output:
         with open(os.environ['GITHUB_OUTPUT'],'a') as out:out.write('needs_node='+str(plan['needs_node']).lower()+'\n')
     print(json.dumps(plan,ensure_ascii=False),flush=True)
-    if args.executar:execute(plan)
+    if args.executar:execute(plan,fase=args.fase)
     print('CICLO_RAPIDO: não substitui validação completa nem autoriza deploy.',flush=True)

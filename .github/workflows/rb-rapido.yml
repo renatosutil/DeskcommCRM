@@ -25,6 +25,11 @@ jobs:
         if: steps.plano.outputs.needs_node == 'true'
         timeout-minutes: 5
       - name: Testes dos arquivos afetados e desdobramentos
-        run: python3 -B scripts/rb-ciclo-rapido.py --executar
+        run: python3 -B scripts/rb-ciclo-rapido.py --executar --fase testes
+      - name: Checagem de tipos com limite do CI oficial
+        if: steps.plano.outputs.needs_node == 'true'
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: python3 -B scripts/rb-ciclo-rapido.py --executar --fase tipos
       - name: Declarar alcance
         run: echo 'Ciclo de desenvolvimento. Publicação exige os cinco workflows completos do mesmo commit.' >> "$GITHUB_STEP_SUMMARY"

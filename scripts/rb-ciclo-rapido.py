@@ -1,7 +1,7 @@
 """Seleciona testes de desenvolvimento; não autoriza publicação nem acessa credenciais."""
 import argparse,json,os,pathlib,subprocess
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-PIPELINE_TESTS=['scripts/rb-ciclo-rapido.test.py','scripts/rb-enviar-artefatos.test.py','scripts/rb-verificar-ci.test.py']
+PIPELINE_TESTS=['scripts/rb-ciclo-rapido.test.py','scripts/rb-enviar-artefatos.test.py','scripts/rb-verificar-ci.test.py','scripts/rb-seletivo.test.py','scripts/rb-implantar-seletivo.test.py']
 COLLECTOR_TESTS=['integracoes/rb-atacado/coletor/test-'+n+'.py' for n in ('aprovacoes','api-mega','politica','estimativa')]
 RB_TESTS=['tests/unit/rb-'+n+'.test.ts' for n in ('elegibilidade-confirmada','entrega','estimativa','estoque-verificado','foto','mega','orcamento','provas','publicacao-verificada','sentimento')]
 SEND_TESTS=['tests/unit/'+n+'.test.ts' for n in ('before-send-chain-shape','opt-out-deteccao','pre-go-live-novos-canais','branding')]
@@ -10,7 +10,7 @@ def planejar(paths):
     paths=sorted(set(paths));python=set();ts=set();related=[];full=False;critical=False
     for p in paths:
         if p.startswith(('docs/','.changes/')) or p.endswith('.md'):continue
-        if p.startswith(('scripts/rb-ciclo-rapido','scripts/rb-enviar-artefatos','scripts/rb-verificar-ci')) or p in ('.github/workflows/rb-rapido.yml','.github/workflows/rb-release.yml'):
+        if p.startswith(('scripts/rb-ciclo-rapido','scripts/rb-enviar-artefatos','scripts/rb-verificar-ci','scripts/rb-seletivo','scripts/rb-implantar-seletivo')) or p in ('.github/workflows/rb-rapido.yml','.github/workflows/rb-release.yml'):
             python.update(PIPELINE_TESTS)
         elif p.startswith('integracoes/rb-atacado/coletor/'):
             python.update(COLLECTOR_TESTS)

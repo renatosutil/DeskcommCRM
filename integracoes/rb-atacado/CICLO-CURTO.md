@@ -24,3 +24,17 @@ GitHub → Actions → RB ciclo rápido de desenvolvimento mostra os testes sele
 O diretório `.github` e os scripts exclusivos de CI ficam fora do contexto Docker. Assim, editar workflow/testes não copia metadados sem uso para o worker. Isso não implementa imagens de múltiplas revisões: os quatro componentes continuam com identidade verificável da candidata.
 
 Rollback desta otimização: reverter o commit do ciclo rápido e voltar a trabalhar na branch candidata; isso não exige restart nem altera configurações do cliente.
+
+## Publicação seletiva implementada
+
+A release publica `rb-release.json`: candidata, revisão real, checksum, identidade e impressão das entradas de cada um dos quatro componentes. Apenas os componentes com entradas alteradas entram na matriz de build. Os demais referenciam artefatos imutáveis de uma release anterior publicada, cuja fonte precisa ser ancestral e compatível com a candidata. Nenhuma imagem recebe uma revisão nova por reaproveitamento.
+
+A seleção é conservadora e segue COPY/ADD e o contexto dos Dockerfiles: app/worker usam COPY amplo e podem mudar juntos; scheduler e coletor usam entradas explícitas. Padrões glob não comprovados, sintaxe desconhecida, symlinks e bind mounts ampliam entradas em vez de ocultar alterações. Isso pode reconstruir mais componentes, mas nunca considera irrelevante um caminho desconhecido.
+
+Para obrigar a reconstrução das quatro imagens, GitHub → Settings → Secrets and variables → Actions → Variables → New repository variable: nome `RB_FORCE_REBUILD`, valor `true`. Remover/desabilitar esse valor após a publicação desejada. Essa variável é uma opção pública, não uma credencial. É útil também para atualizar bases Docker quando não há mudança de código.
+
+A implantação seletiva usa `scripts/rb-implantar-seletivo.py` no checkout da candidata. A ação `baixar --tag <release> --repo <checkout>` valida CI, manifestos, checksums, gzip e identidade OCI. `planejar --recibo <verified.json> --repo <checkout>` mostra os serviços a trocar sem recriá-los. `implantar` exige agente pausado e restrito, env 600, saúde da cobrança e recursos mínimos; cria recibo novo 600 com as imagens anteriores. `rollback --recibo <before.json> --repo <checkout>` restaura somente os serviços da sessão, preserva volumes e deixa o agente pausado para revisão. Use o recibo salvo pela mesma execução, nunca a função rollback do helper antigo, que volta às imagens oficiais e para o coletor.
+
+A rotina só recria serviços cuja identidade de imagem mudou. Mantém IDs de contêineres não afetados, Caddy, cobrança, Redis, WAHA e VPN. Não modifica Compose existente, env, firewall, banco, volumes ou política de atendimento. Os overrides novos ficam em pasta datada exclusiva. Publicação seletiva não dispensa os cinco workflows completos aprovados do SHA candidato.
+
+Para desfazer o pipeline seletivo, reverta o commit no GitHub; releases já publicadas continuam imutáveis. Para desfazer uma implantação, use o recibo da sessão e valide a versão do agente antes de retomar. O manifesto identifica revisões diferentes corretamente; uma imagem não reconstruída não tem a revisão da candidata.

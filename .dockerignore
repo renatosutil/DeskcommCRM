@@ -44,3 +44,9 @@ scripts/rb-ciclo-rapido.test.py
 scripts/rb-enviar-artefatos.py
 scripts/rb-verificar-ci.py
 integracoes/rb-atacado/CICLO-CURTO.md
+
+# Planejamento e implantação CI não são código do runtime.
+scripts/rb-seletivo.py
+scripts/rb-seletivo.test.py
+scripts/rb-implantar-seletivo.py
+scripts/rb-implantar-seletivo.test.py

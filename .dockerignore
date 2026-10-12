@@ -36,3 +36,11 @@ integracoes/rb-atacado/coletor/test-*.py
 scripts/rb-verificar-ci.test.py
 
 scripts/rb-enviar-artefatos.test.py
+
+# Metadados de CI e seus testes não pertencem ao runtime do worker.
+.github
+scripts/rb-ciclo-rapido.py
+scripts/rb-ciclo-rapido.test.py
+scripts/rb-enviar-artefatos.py
+scripts/rb-verificar-ci.py
+integracoes/rb-atacado/CICLO-CURTO.md

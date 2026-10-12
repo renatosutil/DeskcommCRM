@@ -62,6 +62,8 @@ const diasDeRetencao = (nome: string, padrao: number) =>
     });
 
 const schema = z.object({
+  // Opt-in privado; não exige arquivos novos na instalação comum.
+  RB_ATACADO_ENABLED: z.enum(["0", "1"]).default("0"),
   // Node
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 

@@ -4,7 +4,7 @@ import type { PublishedAgentConfig } from '@/lib/agent-engine/agent/agent-config
 const mocks = vi.hoisted(() => ({
   router: vi.fn(), classify: vi.fn(), byId: vi.fn(), bySession: vi.fn(), conversationAgent: vi.fn(),
   draft: vi.fn(), operation: vi.fn(),
-  handoff: vi.fn(async () => false), elegibilidade: vi.fn(async (): Promise<unknown> => null),
+  handoff: vi.fn(async () => false), elegibilidade: vi.fn(async (): Promise<unknown> => ({permite:true,motivo:'gate_aberto',bloqueioPorAllowlist:false})),
   // O Jev no roteador, desligado: a seleção medida aqui é a de sempre.
   jev: vi.fn(() => ({ estado: Promise.resolve('desligada'), escolha: Promise.resolve(null), observar: vi.fn() })),
 }));
@@ -83,7 +83,7 @@ function setup(a: PublishedAgentConfig, b: PublishedAgentConfig, sticky: boolean
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.handoff.mockResolvedValue(false);
-  mocks.elegibilidade.mockResolvedValue(null);
+  mocks.elegibilidade.mockResolvedValue({permite:true,motivo:'gate_aberto',bloqueioPorAllowlist:false});
 });
 
 describe('operação segue a identidade escolhida pelo router canônico', () => {

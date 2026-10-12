@@ -115,10 +115,33 @@ def cotacao(document, now=None):
         raise Recusa('cotacao_desatualizada')
     return numero(rates[0].replace(',','.'))
 
-def calcular(custo, base, quantidade):
+def politica_privada(path=Path('/opt/rb-atacado/pricing.json')):
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+    with os.fdopen(fd,'r') as f:
+        s=os.fstat(f.fileno())
+        if not stat.S_ISREG(s.st_mode) or stat.S_IMODE(s.st_mode)!=0o600 or s.st_uid!=os.getuid() or s.st_size>4096:
+            raise Recusa('politica_indisponivel')
+        data=json.load(f)
+    if set(data)!={'fx_multiplier','sale_multiplier'}:
+        raise Recusa('politica_indisponivel')
+    factors=[]
+    for key in ('fx_multiplier','sale_multiplier'):
+        value=data[key]
+        if not isinstance(value,str) or not re.fullmatch(r'[0-9]+(?:\.[0-9]{1,4})?',value):
+            raise Recusa('politica_indisponivel')
+        factor=Decimal(value)
+        if not factor.is_finite() or not Decimal('1')<=factor<=Decimal('10'):
+            raise Recusa('politica_indisponivel')
+        factors.append(factor)
+    return tuple(factors)
+
+def calcular(custo, base, quantidade, politica=None):
     if type(quantidade) is not int or not 1 <= quantidade <= 10000:
         raise Recusa('quantidade_invalida')
-    unit=(numero(custo)*numero(base)*Decimal('1.05')*Decimal('1.35')).quantize(Decimal('0.01'),rounding=ROUND_HALF_UP)
+    fx,sale=politica if politica is not None else politica_privada()
+    if not all(isinstance(x,Decimal) and x.is_finite() and Decimal('1')<=x<=Decimal('10') for x in (fx,sale)):
+        raise Recusa('politica_indisponivel')
+    unit=(numero(custo)*numero(base)*fx*sale).quantize(Decimal('0.01'),rounding=ROUND_HALF_UP)
     cents=int(unit*100)
     return cents,cents*quantidade
 

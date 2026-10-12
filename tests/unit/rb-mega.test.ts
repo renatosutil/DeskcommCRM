@@ -5,7 +5,7 @@ import type { McpContext } from "../../lib/mcp/types";
 const org = "11111111-1111-4111-8111-111111111111";
 const contact = "22222222-2222-4222-8222-222222222222";
 const other = "33333333-3333-4333-8333-333333333333";
-const config = { enabled: true as const, organization_id: org, contact_id: contact, authorization_token: "a".repeat(64) };
+const config = { enabled: true as const, organization_id: org, contact_id: contact, agent_id:'00000000-0000-4000-8000-000000000009',authorization_token: "a".repeat(64) };
 let calls = 0, reads = 0;
 let row: unknown = { id: contact, kind: "person", is_blocked: false, is_anonymized: false };
 let dbError: unknown = null;

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { prepararFotoMega } from "../../lib/mcp/tools/rb-atacado/foto";
 import type { McpContext } from "../../lib/mcp/types";
 const org="11111111-1111-4111-8111-111111111111",contact="22222222-2222-4222-8222-222222222222",conversation="33333333-3333-4333-8333-333333333333",job="44444444-4444-4444-8444-444444444444",other="55555555-5555-4555-8555-555555555555";
-const config={enabled:true as const,organization_id:org,contact_id:contact,authorization_token:"a".repeat(64)};
+const config={enabled:true as const,organization_id:org,contact_id:contact,agent_id:'00000000-0000-4000-8000-000000000009',authorization_token:"a".repeat(64)};
 const product={codigo:"123",nome:"Perfume teste EDT 100 ml",marca:"Marca",versao:"EDT",variante:null,volume_ml:100,apresentacao:"não confirmada"};
 let calls=0,uploads=0,reads=0;let bytes=Buffer.from([255,216,255,1]);let mime="image/jpeg";let meta:unknown=product;let error:unknown=null;let conversationData:unknown;let contactData:unknown;let uploadError:unknown=null;
 const db={from(name:string){const filters:Record<string,string>={};return {select(){return this;},eq(k:string,v:string){filters[k]=v;return this;},async maybeSingle(){reads++;assert.equal(filters.organization_id,org);return {data:name==="contacts"?contactData:conversationData,error};}};},storage:{from(bucket:string){assert.equal(bucket,"whatsapp-media");return {async upload(path:string,b:Buffer,opts:unknown){uploads++;assert.equal(path,`${org}/${conversation}/mega-123-${job}.${mime==="image/jpeg"?"jpg":mime==="image/png"?"png":"webp"}`);assert.deepEqual(b,bytes);assert.equal((opts as {upsert:boolean}).upsert,false);return {error:uploadError};}};}}};

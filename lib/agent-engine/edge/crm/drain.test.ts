@@ -75,6 +75,12 @@ function poolFalso(
     if (sql.includes('ai_dispatch_mode')) return { rows: [{ mode: null, status: 'active' }] };
     if (sql.includes('is_group')) return { rows: [{ is_group: false }] };
     if (sql.includes('tem_agente')) return { rows: [capacidade] };
+    // A conversa positiva existe e está elegível; ausência/erro já não autoriza.
+    if (sql.includes('as channel_metadata')) return { rows: [{
+      channel_metadata:{ai_gate:'open'},org_status:'active',force_human:false,
+      assignee_kind:null,bot_silenced_until:null,ai_authorized_at:null,phone_number:null,
+    }] };
+
     // A consulta real filtra por TIPOS_DERIVAVEIS — linha de texto não entra. O
     // falso banco precisa recusá-la também, senão devolveria um texto para uma
     // pergunta que o Postgres nunca responderia, e o teste passaria por engano.
@@ -231,6 +237,7 @@ it('coalescência exclui job em hold (held_run_after) — sessão morta não seq
   const query = vi.fn().mockImplementation((sql: string) => {
     calls.push(sql);
     if (sql.includes('returning e.id')) return { rows: [eventoDeAudio(0)] };
+    if (sql.includes('as channel_metadata')) return { rows: [{ channel_metadata: { ai_gate: 'open' }, org_status:'active',force_human:false,assignee_kind:null,bot_silenced_until:null,ai_authorized_at:null,phone_number:null }] };
     if (sql.includes('ai_dispatch_mode')) return { rows: [{ mode: null, status: 'active' }] };
     if (sql.includes('is_group')) return { rows: [{ is_group: false }] };
     if (sql.includes('tem_agente')) return { rows: [{ tem_agente: true, tem_roteador: false }] };

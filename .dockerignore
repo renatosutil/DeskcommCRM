@@ -30,3 +30,7 @@ scratchpad
 evidence
 .superpowers
 *.tsbuildinfo
+
+# Testes Python do coletor são montados somente no runner de testes.
+integracoes/rb-atacado/coletor/test-*.py
+scripts/rb-verificar-ci.test.py

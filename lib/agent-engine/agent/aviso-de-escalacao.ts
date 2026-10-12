@@ -1,3 +1,4 @@
+import { avisoRbVerificado } from '@/lib/mcp/tools/rb-atacado/aviso';
 import type {JobClaim} from "../queue/claim";
 /**
  * O ENVIO do aviso de que a IA está saindo de campo — lado do MOTOR (`pg`).
@@ -156,6 +157,9 @@ export async function avisarLeadDaEscalacao(
     body = textoDoAviso(opts.motivo, null, ids.leadId, idioma);
   }
 
+  const rbAviso=await avisoRbVerificado({organizationId:ids.tenantId,contactId:ids.leadId,motivo:opts.motivo});
+  if(rbAviso)body=rbAviso.body;
+
   try {
     const chain = await runBeforeSend({
       pool,
@@ -195,6 +199,7 @@ export async function avisarLeadDaEscalacao(
           seq: SEQ_DO_AVISO,
           conversationId: ids.conversationId,
           body: finalBody,
+          ...(rbAviso?{rbResposta:rbAviso.resposta}:{}),
         }),
     });
 

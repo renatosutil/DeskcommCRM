@@ -21,7 +21,7 @@ import type { PublishedAgentConfig } from '@/lib/agent-engine/agent/agent-config
 
 const mocks = vi.hoisted(() => ({
   router: vi.fn(), classify: vi.fn(), byId: vi.fn(), bySession: vi.fn(), conversationAgent: vi.fn(),
-  draft: vi.fn(), operation: vi.fn(), handoff: vi.fn(), elegibilidade: vi.fn(),
+  draft: vi.fn(), operation: vi.fn(), handoff: vi.fn(), elegibilidade: vi.fn(), escopoRb:vi.fn(),
 }));
 vi.mock('@/lib/agent-engine/agent/router-config', () => ({ loadActiveRouter: mocks.router }));
 vi.mock('@/lib/agent-engine/agent/intent-classifier', () => ({ classifyIntent: mocks.classify }));
@@ -45,6 +45,7 @@ vi.mock('@/lib/agent-engine/guardrails/camadas-da-org', () => ({
   lerCamadasDaOrg: vi.fn(async () => ({})), camadaLigada: vi.fn(() => false),
 }));
 vi.mock('@/lib/agent-engine/agent/fuso-da-org', () => ({ fusoDaOrganizacao: vi.fn(async () => 'UTC') }));
+vi.mock('@/lib/mcp/tools/rb-atacado/escopo',()=>({confirmarEscopoRbAntesDaIA:mocks.escopoRb}));
 vi.mock('@/lib/ai/elegibilidade/consulta-pg', () => ({ decidirElegibilidadeDaConversa: mocks.elegibilidade }));
 vi.mock('@/lib/agent-engine/pacing/store', () => ({ loadChannelKnobs: vi.fn(async () => ({ knobs: {} })) }));
 vi.mock('@/lib/agent-engine/pacing/engine', () => ({ janelaDeEnvioAberta: () => true, proximaAberturaDaJanela: vi.fn() }));
@@ -85,11 +86,22 @@ function pool() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.escopoRb.mockResolvedValue(true);
   mocks.handoff.mockResolvedValue(false);
   mocks.elegibilidade.mockResolvedValue(null);
 });
 
 describe('o assistido não rascunha em conversa que já tem dono', () => {
+  it('fora do teste é barrado antes do roteador, classificador e rascunho',async()=>{
+    mocks.escopoRb.mockResolvedValue(false);
+    const p=pool();
+    await createInboundTurnHandler(deps)(job as never,p as never,{workerId:'worker'});
+    expect(mocks.router).not.toHaveBeenCalled();
+    expect(mocks.classify).not.toHaveBeenCalled();
+    expect(mocks.draft).not.toHaveBeenCalled();
+    expect(mocks.operation).not.toHaveBeenCalled();
+  });
+
   // Um caso por MOTIVO real que a mesma consulta devolve: dono humano,
   // `force_human` e silêncio do bot. São ramos distintos da regra pura, e
   // testar só um deixaria os outros dois sem guarda.

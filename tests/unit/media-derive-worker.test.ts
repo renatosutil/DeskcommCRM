@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/mcp/tools/rb-atacado/escopo", () => ({ confirmarEscopoRbAntesDaIASupabase: vi.fn(async () => true) }));
+import { confirmarEscopoRbAntesDaIASupabase } from "@/lib/mcp/tools/rb-atacado/escopo";
+
 const downloadMock = vi.fn();
 const updateEqMock = vi.fn();
 const messageRow = {
@@ -146,6 +149,7 @@ function eventRow(attempts = 0) {
 
 describe("deriveMessageMedia", () => {
   beforeEach(() => {
+    vi.mocked(confirmarEscopoRbAntesDaIASupabase).mockReset().mockResolvedValue(true);
     downloadMock.mockReset().mockResolvedValue({ data: new Blob([new Uint8Array([1, 2, 3])]), error: null });
     updateEqMock.mockReset();
     inboxInsertMock.mockReset();
@@ -157,6 +161,18 @@ describe("deriveMessageMedia", () => {
     messageRow.media_mime = "audio/ogg";
     vi.mocked(resolveOrgLlmConfig).mockReset().mockResolvedValue(configResolvida());
     vi.mocked(deriveMediaText).mockReset().mockResolvedValue("transcrição do áudio real");
+  });
+
+  it.each(["audio", "image"])("contato fora do teste: %s não chega à mídia nem ao modelo", async type => {
+    messageRow.type=type;
+    vi.mocked(confirmarEscopoRbAntesDaIASupabase).mockResolvedValue(false);
+    const result=await deriveMessageMedia(eventRow());
+    expect(result.status).toBe("skipped");
+    expect(result.detail).toBe("rb_fora_do_teste");
+    expect(downloadMock).not.toHaveBeenCalled();
+    expect(deriveMediaText).not.toHaveBeenCalled();
+    expect(resolveOrgLlmConfig).not.toHaveBeenCalled();
+    expect(updateEqMock).toHaveBeenCalledWith({media_derived_status:"skipped"});
   });
 
   it("usa binding da visão quando a organização não tem credencial padrão (#1591)", async () => {

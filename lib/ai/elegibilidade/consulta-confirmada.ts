@@ -1,3 +1,4 @@
+import { confirmarEscopoRbAntesDaIA } from '@/lib/mcp/tools/rb-atacado/escopo';
 import type pg from 'pg';
 import { decidirElegibilidadeDaConversa } from './consulta-pg';
 import type { DecisaoDeElegibilidade } from './gate';
@@ -10,6 +11,8 @@ export async function consultarElegibilidadeConfirmada(
   input: Parameters<typeof decidirElegibilidadeDaConversa>[1],
 ): Promise<Resultado> {
   try {
+    if (!await confirmarEscopoRbAntesDaIA(pool,input))
+      return { permite:false,motivo:'sem_autorizacao',bloqueioPorAllowlist:true,consultaConfirmada:true };
     const resultado = await decidirElegibilidadeDaConversa(pool, input);
     if (resultado !== null) return { ...resultado, consultaConfirmada: true };
   } catch {

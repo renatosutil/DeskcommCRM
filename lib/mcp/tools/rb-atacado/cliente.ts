@@ -11,7 +11,7 @@ export const termoDePerfume = z.string().min(2).max(120)
   .refine((s) => !/\d{6,}/u.test(s), "Use somente identificação do perfume.")
   .refine((s) => /\p{L}/u.test(s), "Use somente identificação do perfume.");
 export const configSchema = z.object({
-  enabled: z.literal(true), organization_id: z.uuid(), contact_id: z.uuid(),
+  enabled: z.literal(true), organization_id: z.uuid(), contact_id: z.uuid(), agent_id: z.uuid(),
   authorization_token: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
 type Config = z.infer<typeof configSchema>;
@@ -49,7 +49,7 @@ export async function lerConfig(): Promise<Config> {
 }
 const recusado = (motivo: string) => ({ permitido: false, motivo, mensagem: "Não foi possível consultar esta opção agora; o valor depende da RB Atacado." });
 interface Dependencias { config: () => Promise<Config>; fetch: typeof globalThis.fetch; now: () => number }
-export async function consultarMega(input: { perfume: string }, ctx: McpContext,
+export async function consultarMega(input: { perfume: string }, ctx: Pick<McpContext, 'organizationId' | 'contatoDoTurno' | 'supabase'>,
   deps: Dependencias = { config: lerConfig, fetch: globalThis.fetch, now: Date.now }) {
   // Configuration errors, other tenants and absence of trusted contact fail closed BEFORE network.
   try {

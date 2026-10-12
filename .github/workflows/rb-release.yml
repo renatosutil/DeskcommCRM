@@ -1,0 +1,148 @@
+name: RB imagens verificadas v1.76.0
+on:
+  pull_request:
+    branches: [rb-base-v1.76.0]
+  push:
+    branches: [rb-publicar-v1.76.0]
+permissions: {}
+jobs:
+  coletor-em-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: integracoes/rb-atacado/Dockerfile.coletor
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: deskcommcrm-rb-coletor:teste
+      - name: Testes determinísticos contra o código da imagem, sem rede
+        run: |
+          docker run --rm --network none --mount "type=bind,src=$PWD/integracoes/rb-atacado/coletor/test-aprovacoes.py,dst=/opt/coletor/test-aprovacoes.py,readonly" --entrypoint python3 deskcommcrm-rb-coletor:teste -B /opt/coletor/test-aprovacoes.py
+          docker run --rm --network none --mount "type=bind,src=$PWD/integracoes/rb-atacado/coletor/test-api-mega.py,dst=/opt/coletor/test-api-mega.py,readonly" --entrypoint python3 deskcommcrm-rb-coletor:teste -B /opt/coletor/test-api-mega.py
+          docker run --rm --network none --mount "type=bind,src=$PWD/integracoes/rb-atacado/coletor/test-politica.py,dst=/opt/coletor/test-politica.py,readonly" --entrypoint python3 deskcommcrm-rb-coletor:teste -B /opt/coletor/test-politica.py
+
+  verificar:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Confirmar base, versão e baseline sem mudanças
+        run: |
+          python3 -c 'import re,pathlib; s=pathlib.Path("CHANGELOG.md").read_text(); assert re.search(r"^## \[([0-9]+\.[0-9]+\.[0-9]+)\]",s,re.M).group(1)=="1.76.0"'
+          git fetch --no-tags --depth=1 https://github.com/melgarafael/DeskcommCRM.git 3101682cdc9d1448304f6c613349281b2db6857d
+          git show FETCH_HEAD:supabase/baseline.sql > /tmp/baseline-oficial.sql
+          cmp /tmp/baseline-oficial.sql supabase/baseline.sql
+          git merge-base --is-ancestor FETCH_HEAD HEAD
+      - name: Exigir workflows completos e aprovados do mesmo commit no PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORIO: ${{ github.repository }}
+          REVISAO: ${{ github.sha }}
+        run: |
+          python3 scripts/rb-verificar-ci.py
+      - id: tag
+        env:
+          REVISAO: ${{ github.sha }}
+          RODADA: ${{ github.run_id }}
+          TENTATIVA: ${{ github.run_attempt }}
+        run: |
+          printf 'tag=rb-1.76.0-%s-%s-a%s\n' "$REVISAO" "$RODADA" "$TENTATIVA" >> "$GITHUB_OUTPUT"
+
+  criar-release:
+    needs: verificar
+    runs-on: ubuntu-latest
+    # Somente cria pré-release em rascunho do commit verificado; sem código em produção.
+    permissions:
+      contents: write
+    steps:
+      - name: Criar rascunho imutável desta rodada
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_RB: ${{ needs.verificar.outputs.tag }}
+          REVISAO: ${{ github.sha }}
+        run: |
+          gh release create "$TAG_RB" --target "$REVISAO" --draft --prerelease --title "RB Atacado — DeskComm v1.76.0" --notes "Imagens OCI produzidas em CI a partir de commit validado. Não altera a release oficial nem o baseline."
+
+  construir:
+    needs: [verificar, criar-release]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: app
+            file: Dockerfile
+          - name: worker
+            file: Dockerfile.worker
+          - name: scheduler
+            file: Dockerfile.scheduler
+          - name: coletor
+            file: integracoes/rb-atacado/Dockerfile.coletor
+    # Upload de imagens públicas sem credenciais: não publica pacotes privados nem mexe na VPS.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: deskcommcrm-rb-${{ matrix.name }}:${{ github.sha }}
+          build-args: APP_VERSION=1.76.0
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=1.76.0-rb
+      - name: Salvar OCI, checksum e identidade da imagem
+        env:
+          COMPONENTE: ${{ matrix.name }}
+          REVISAO: ${{ github.sha }}
+        run: |
+          image="deskcommcrm-rb-$COMPONENTE:$REVISAO"
+          docker save "$image" | gzip -1 > "/tmp/rb-$COMPONENTE.tar.gz"
+          cd /tmp
+          sha256sum "rb-$COMPONENTE.tar.gz" > "rb-$COMPONENTE.sha256"
+          docker image inspect "$image" --format '{{.Id}}' > "rb-$COMPONENTE.image-id"
+      - name: Enviar artefatos para o rascunho
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_RB: ${{ needs.verificar.outputs.tag }}
+          COMPONENTE: ${{ matrix.name }}
+        run: |
+          gh release upload "$TAG_RB" "/tmp/rb-$COMPONENTE.tar.gz" "/tmp/rb-$COMPONENTE.sha256" "/tmp/rb-$COMPONENTE.image-id"
+
+  disponibilizar:
+    needs: [verificar, construir]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Exigir todos os artefatos antes de disponibilizar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_RB: ${{ needs.verificar.outputs.tag }}
+        run: |
+          gh release view "$TAG_RB" --json assets --jq '[.assets[].name] | sort' > /tmp/arquivos.json
+          python3 -c 'import json; a=json.load(open("/tmp/arquivos.json")); e=sorted("rb-"+n+s for n in ("app","worker","scheduler","coletor") for s in (".tar.gz",".sha256",".image-id")); assert a==e'
+          gh release edit "$TAG_RB" --draft=false

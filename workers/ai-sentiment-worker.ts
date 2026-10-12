@@ -1,3 +1,4 @@
+import { confirmarEscopoRbAntesDaIASupabase } from '@/lib/mcp/tools/rb-atacado/escopo';
 /**
  * ai-sentiment-worker — classifies the sentiment of inbound messages.
  *
@@ -84,6 +85,21 @@ export interface SentimentResult {
 
 export async function processSentiment(event: EventRow): Promise<SentimentResult> {
   try {
+    if(process.env.RB_ATACADO_ENABLED==='1'){
+      const rbAdmin=createAdminClient();
+      let rbConversation=typeof event.payload?.conversation_id==='string'?event.payload.conversation_id:null;
+      if(!rbConversation){
+        const id=typeof event.payload?.message_id==='string'?event.payload.message_id:event.entity_id;
+        if(id){
+          const {data}=await rbAdmin.from('messages').select('conversation_id')
+            .eq('organization_id',event.organization_id).eq('id',id).maybeSingle();
+          rbConversation=data?.conversation_id??null;
+        }
+      }
+      if(!await confirmarEscopoRbAntesDaIASupabase(rbAdmin,{
+        organizationId:event.organization_id,conversationId:rbConversation??'',
+      }))return {skipped:true,reason:'rb_fora_do_teste'};
+    }
     // Sem portão de `.env` na frente: `isAiGatewayConfigured()` só olhava três
     // variáveis de ambiente e barrava a chave colada pela tela (IA ›
     // Credenciais) e a OpenAI. Quem sabe se existe modelo é o resolver abaixo,

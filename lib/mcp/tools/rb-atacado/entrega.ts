@@ -1,5 +1,7 @@
+import { textoRespostaRb } from './respostas';
+import { conferirFoto } from './provas';
 import { z } from 'zod';
-import { consultarOrcamento, lerConfig, configSchema } from './cliente';
+import { consultarOrcamento, consultarMega, termoDePerfume, lerConfig, configSchema } from './cliente';
 import type { McpContext } from '../../types';
 
 export const referenciaRb = z.object({
@@ -33,11 +35,22 @@ export async function prepararOrcamentoRb(ctx:Contexto,input:unknown,
  consultar=consultarOrcamento) {
  const referencia=referenciaRb.parse(input);
  const cotacao=await consultar(referencia,ctx);
- return { referencia, body:textoOrcamentoRb(cotacao) };
+ if (!('situacao' in cotacao) || cotacao.situacao !== 'aprovado') throw new EntregaRbRecusada();
+ return { referencia, body:textoOrcamentoRb(cotacao), cotacao };
 }
-type Entrada = { actorType:string; ctx:Contexto; body:string; tipo:string;
+export const pesquisaSemEstoque=z.object({perfume:termoDePerfume}).strict();
+export const TEXTO_SEM_ESTOQUE='Essa pesquisa está sem estoque nos anúncios verificados da Mega Eletrônicos. Posso mostrar outras versões?';
+export async function prepararSemEstoqueRb(ctx:Contexto,input:unknown,consultar=consultarMega){
+ const pedido=pesquisaSemEstoque.parse(input);
+ const resultado=await consultar(pedido,ctx);
+ if(!('status' in resultado)||resultado.status!=='sem_estoque_nos_anuncios_verificados'||
+  !resultado.detalhes_consultados_integralmente||resultado.opcoes.length!==0)throw new EntregaRbRecusada();
+ return {referencia:pedido,body:TEXTO_SEM_ESTOQUE};
+}
+type Entrada = { actorType:string; actorId:string; ctx:Contexto; body:string; tipo:string;
+ conversationId?:string; mediaPath?:string; mediaMime?:string;
  grupo:boolean; metadata?:Record<string,unknown> };
-type Deps={enabled:boolean;config:typeof lerConfig;consultar:typeof consultarOrcamento};
+type Deps={enabled:boolean;config:typeof lerConfig;consultar:typeof consultarOrcamento;now?:()=>number;buscar?:typeof consultarMega};
 /** Guarda opt-in privada, reexecutada antes de CADA tentativa do transporte. */
 export async function conferirEntregaRb(input:Entrada,deps:Deps={
  enabled:process.env.RB_ATACADO_ENABLED==='1',config:lerConfig,consultar:consultarOrcamento
@@ -47,17 +60,25 @@ export async function conferirEntregaRb(input:Entrada,deps:Deps={
   const config=configSchema.parse(await deps.config());
   if(input.ctx.organizationId!==config.organization_id)return;
   if(input.grupo || input.ctx.contatoDoTurno!==config.contact_id)throw new EntregaRbRecusada();
+  if(input.actorId!==config.agent_id && input.actorId!=='agent-engine')return;
   const referencia=input.metadata?.rb_orcamento;
   if(referencia!==undefined){
    if(input.tipo!=='text')throw new EntregaRbRecusada();
    const atual=await prepararOrcamentoRb(input.ctx,referencia,deps.consultar);
    if(input.body!==atual.body)throw new EntregaRbRecusada();
+  }else if(input.metadata?.rb_sem_estoque!==undefined){
+   if(input.tipo!=='text')throw new EntregaRbRecusada();
+   const atual=await prepararSemEstoqueRb(input.ctx,input.metadata.rb_sem_estoque,deps.buscar??consultarMega);
+   if(input.body!==atual.body)throw new EntregaRbRecusada();
+  }else if(input.metadata?.rb_foto_mega!==undefined){
+   const foto=conferirFoto(input.metadata.rb_foto_mega,config.authorization_token,deps.now?.()??Date.now());
+   if(input.tipo!=='image'||foto.org!==input.ctx.organizationId||foto.contact!==input.ctx.contatoDoTurno||
+    foto.agent!==input.actorId||foto.conversation!==input.conversationId||
+    foto.path!==input.mediaPath||foto.mime!==input.mediaMime||foto.body!==input.body)throw new EntregaRbRecusada();
   }else{
-   // Defesa adicional. Não substitui a revisão dos outros guardrails comerciais.
-   if(input.tipo==='template' ||
-    /(?:R\s*\$|US\s*\$|\b(?:BRL|USD|reais|d[oó]lares)\b|\d+[.,]\d{2}\b|\d+\s*%)/iu.test(input.body)){
-     throw new EntregaRbRecusada();
-   }
+   // Nenhum texto livre sai deste agente; não depende de reconhecer moedas/números.
+   if(input.tipo!=='text'||input.body!==textoRespostaRb(input.metadata?.rb_resposta))
+    throw new EntregaRbRecusada();
   }
  }catch{throw new EntregaRbRecusada();}
 }

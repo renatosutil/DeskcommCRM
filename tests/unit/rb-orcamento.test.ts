@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { consultarOrcamento } from "../../lib/mcp/tools/rb-atacado/cliente";
 import type { McpContext } from "../../lib/mcp/types";
 const org="11111111-1111-4111-8111-111111111111", contact="22222222-2222-4222-8222-222222222222",other="33333333-3333-4333-8333-333333333333";
-const config={enabled:true as const,organization_id:org,contact_id:contact,authorization_token:"a".repeat(64)};
+const config={enabled:true as const,organization_id:org,contact_id:contact,agent_id:'00000000-0000-4000-8000-000000000009',authorization_token:"a".repeat(64)};
 const base={produto:{codigo:"123",nome:"Perfume teste EDT 100 ml",marca:"Marca",versao:"EDT",variante:null,volume_ml:100,apresentacao:"frasco",imagem_url:"https://resource.megaeletronicos.com/teste.webp",imagem_validada:true},quantidade:2,moeda:"BRL",situacao:"aprovado",preco_unitario_cents:7088,subtotal_cents:14176,quantidade_em_estoque:"nao_informada",disponibilidade_na_consulta:"disponivel",compra_reserva_pagamento_confirmados:false,valido_ate_utc:"2026-10-11T21:00:00Z"};
 let calls=0;let payload:unknown=base;let row:unknown;let error:unknown=null;
 const chain={select(){return this;},eq(){return this;},async maybeSingle(){return {data:row,error};}};

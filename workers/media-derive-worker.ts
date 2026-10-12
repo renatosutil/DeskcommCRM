@@ -1,3 +1,4 @@
+import { confirmarEscopoRbAntesDaIASupabase } from '@/lib/mcp/tools/rb-atacado/escopo';
 /**
  * Consome `media.derive_requested`: baixa a mídia persistida (Onda 0), gera o
  * derivado textual model-agnóstico (transcrição/visão/pdf) e grava em
@@ -110,6 +111,11 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
   // derivar e, principalmente, nada a baixar do provedor — o `media_storage_path`
   // foi anulado junto, mas o DETALHE tem de dizer o motivo real, senão o turno
   // seguinte esperaria 120s por uma leitura que a política proibiu.
+  // Fotos/áudios de outros contatos/grupos nunca chegam ao modelo no teste RB.
+  if (!await confirmarEscopoRbAntesDaIASupabase(admin,{
+    organizationId:row.organization_id,conversationId:msg.conversation_id,
+  })) return markSkipped('rb_fora_do_teste');
+
   if (msg.metadata?.media_status === "expired") return markSkipped("expired by retention");
 
   if (!msg.media_storage_path) return markSkipped("no media");

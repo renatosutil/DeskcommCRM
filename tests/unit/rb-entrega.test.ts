@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { McpContext } from '../../lib/mcp/types';
 import { conferirEntregaRb, prepararOrcamentoRb, textoOrcamentoRb } from '../../lib/mcp/tools/rb-atacado/entrega';
 const config={enabled:true as const,organization_id:'00000000-0000-4000-8000-000000000001',
- contact_id:'00000000-0000-4000-8000-000000000002',authorization_token:'a'.repeat(64)};
+ contact_id:'00000000-0000-4000-8000-000000000002',agent_id:'00000000-0000-4000-8000-000000000009',authorization_token:'a'.repeat(64)};
 const cotacao={
  produto:{codigo:'123',nome:'Perfume fixture',marca:'Fixture',versao:'EDP' as const,
  variante:null,volume_ml:100,apresentacao:'frasco' as const,imagem_url:null,imagem_validada:false},
@@ -15,7 +15,7 @@ const ctx={organizationId:config.organization_id,contatoDoTurno:config.contact_i
  supabase:{} as McpContext['supabase']};
 const consultar=vi.fn(async()=>cotacao);
 const deps={enabled:true,config:vi.fn(async()=>config),consultar};
-const entrada=()=>({actorType:'ai_agent',ctx,body:textoOrcamentoRb(cotacao),tipo:'text',
+const entrada=()=>({actorType:'ai_agent',actorId:config.agent_id,ctx,body:textoOrcamentoRb(cotacao),tipo:'text',
  grupo:false,metadata:{rb_orcamento:{codigo:'123',quantidade:2}}});
 describe('orçamento conferido no envio e retry',()=>{
  beforeEach(()=>{vi.clearAllMocks();consultar.mockImplementation(async()=>cotacao);deps.config.mockImplementation(async()=>config);});
@@ -54,7 +54,7 @@ describe('orçamento conferido no envio e retry',()=>{
   await expect(conferirEntregaRb({...entrada(),metadata:{},body:'Custa R$ 55,00'},deps)).rejects.toThrow();
  });
  it('conversa sem preço não exige consultar loja',async()=>{
-  await expect(conferirEntregaRb({...entrada(),metadata:{},body:'Qual volume você procura?'},deps)).resolves.toBeUndefined();
+  await expect(conferirEntregaRb({...entrada(),metadata:{rb_resposta:'perguntar_ml'},body:'Qual é o volume em ml?'},deps)).resolves.toBeUndefined();
   expect(consultar).not.toHaveBeenCalled();
  });
  it('template não contorna orçamento',async()=>{

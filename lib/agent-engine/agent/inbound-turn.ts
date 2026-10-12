@@ -1,4 +1,5 @@
-import { prepararOrcamentoRb, referenciaRb } from '@/lib/mcp/tools/rb-atacado/entrega';
+import { respostaRbSchema, textoRespostaRb } from '@/lib/mcp/tools/rb-atacado/respostas';
+import { prepararOrcamentoRb, referenciaRb, prepararSemEstoqueRb, pesquisaSemEstoque } from '@/lib/mcp/tools/rb-atacado/entrega';
 import { prepararFotoMega } from '@/lib/mcp/tools/rb-atacado/foto';
 import { prospectingConversationContext } from "@/lib/prospecting/context";
 import { setExecutionAgentOperation } from '@/lib/atendimento/fronteira-server';
@@ -251,6 +252,8 @@ export const AGENT_TOOL_DEFS = {
       'Envia UMA mensagem de WhatsApp ao lead desta conversa. É o ÚNICO jeito de falar com o lead; texto fora desta tool nunca é enviado.',
     inputSchema: z.object({
       body: z.string().min(1).describe('corpo da mensagem, em pt-br, pronto para envio'),
+      rb_sem_estoque: pesquisaSemEstoque.optional().describe('Informe falta de estoque somente após consultar exatamente essa pesquisa na Mega. O servidor reconsulta e recusa se houver opção disponível ou falha de consulta.'),
+      rb_resposta: respostaRbSchema.optional().describe('Resposta curta verificada do agente RB Atacado. Escolha o item conforme a mensagem; o servidor monta o texto. Use para perguntas e pendências, sem inventar preço, estoque, desconto, prazo ou compra.'),
       orcamento_mega: referenciaRb.optional().describe('Envia orçamento exato aprovado pela RB Atacado. O código renderiza o preço final e confere a aprovação; não calcule nem escreva preço no body.'),
       mega_codigo: z.string().regex(/^\d{1,12}$/).optional().describe(
         'Código exato retornado por rb_buscar_perfumes para enviar a foto original e uma legenda verificada, sem preço. Não use junto com produto_codigo.',
@@ -3140,13 +3143,32 @@ async function executarTurnoDoAgente(
     }),
     send_message: tool({
       ...AGENT_TOOL_DEFS.send_message,
-      execute: async ({ body, produto_codigo, mega_codigo, orcamento_mega }) => {
+      execute: async ({ body, produto_codigo, mega_codigo, orcamento_mega, rb_resposta, rb_sem_estoque }) => {
         // CORPO VAZIO NÃO SAI. Medido ao vivo (2026-09-19): o `gpt-4o-mini`
         // chamou `send_message` várias vezes com corpo que virou vazio e o
         // WhatsApp do cliente recebeu bolhas em branco. O schema garante
         // min(1) no argumento, mas um `\n`/espaço passa e vira vazio depois do
         // trim/gates. Recusar aqui devolve ao modelo para reescrever — nunca
         // manda bolha em branco.
+        if (agentConfig?.toolIds.includes('rb_buscar_perfumes') &&
+          [orcamento_mega,mega_codigo,rb_resposta,rb_sem_estoque].every(x=>x===undefined))
+          return {ok:false,error:{code:'rb_formato_obrigatorio',
+            message:'Para RB Atacado, escolha rb_resposta para perguntas/pendências, mega_codigo para foto, orcamento_mega para valor aprovado ou rb_sem_estoque para falta verificada. O servidor monta o texto; não envie texto livre.'}};
+        if ([orcamento_mega,mega_codigo,rb_resposta,rb_sem_estoque].filter(x=>x!==undefined).length>1)
+          return {ok:false,error:{code:'rb_formato_ambiguo',message:'Escolha somente resposta curta, foto ou orçamento.'}};
+        if (rb_sem_estoque!==undefined) {
+          if(preview||!agentConfig?.toolIds.includes('rb_buscar_perfumes'))
+            return {ok:false,error:{code:'rb_nao_autorizado',message:'Consulta RB não autorizada neste turno.'}};
+          try{
+            const verificado=await prepararSemEstoqueRb({organizationId:tenantId,contatoDoTurno:leadId,supabase:deps.crmCfg.supabase},rb_sem_estoque);
+            body=verificado.body;
+          }catch{return {ok:false,error:{code:'rb_disponibilidade_nao_confirmada',message:'Não afirme falta de estoque: há opção disponível ou não foi possível confirmar a pesquisa.'}};}
+        }
+        if (rb_resposta !== undefined) {
+          if (!agentConfig?.toolIds.includes('rb_buscar_perfumes'))
+            return {ok:false,error:{code:'rb_nao_autorizado',message:'Resposta RB não autorizada neste turno.'}};
+          body=textoRespostaRb(rb_resposta);
+        }
         if (orcamento_mega !== undefined) {
           if (preview || mega_codigo !== undefined || produto_codigo !== undefined ||
             !agentConfig?.toolIds.includes('rb_consultar_orcamento')) {
@@ -3157,6 +3179,12 @@ async function executarTurnoDoAgente(
               organizationId:tenantId,contatoDoTurno:leadId,supabase:deps.crmCfg.supabase,
             },orcamento_mega);
             body=preparado.body;
+            evidenciasComerciais.registrarCatalogo({produtos:[{
+              codigo:preparado.cotacao.produto.codigo,nome:preparado.cotacao.produto.nome,
+              descricao:preparado.body,preco:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(preparado.cotacao.preco_unitario_cents/100),
+              disponivel:true,
+            }]});
+
           } catch {
             return { ok:false,error:{code:'orcamento_rb_recusado',message:'O valor precisa de confirmação da RB Atacado. Não informe preço alternativo.'} };
           }
@@ -3241,6 +3269,7 @@ async function executarTurnoDoAgente(
         // segue (degradar para só texto). Ver `agent/fotos-do-produto.ts`.
         let fotosDoProduto: FotoParaEnvio[] = [];
         let fotosQueFaltaram = 0;
+        let provaFotoMega: unknown;
         if (mega_codigo !== undefined) {
           if (preview || produto_codigo !== undefined ||
             !agentConfig?.toolIds.includes('rb_buscar_perfumes')) {
@@ -3257,6 +3286,7 @@ async function executarTurnoDoAgente(
           }
           fotosDoProduto = [preparadaMega.foto];
           body = preparadaMega.legenda;
+          provaFotoMega = preparadaMega.prova;
         }
 
         if (produto_codigo !== undefined && produto_codigo.trim() !== '' && !preview) {
@@ -3444,6 +3474,10 @@ async function executarTurnoDoAgente(
                   conversationId: input.conversationId,
                   body: corpo,
                   ...(orcamento_mega ? { rbOrcamento: orcamento_mega } : {}),
+                  ...(rb_resposta ? { rbResposta: rb_resposta } : {}),
+                  ...(rb_sem_estoque ? { rbSemEstoque: rb_sem_estoque } : {}),
+                  ...(provaFotoMega ? { rbFotoMega: provaFotoMega } : {}),
+
                   ...(media ? { media } : {}),
                 });
               };
@@ -3458,7 +3492,7 @@ async function executarTurnoDoAgente(
                 enviarFoto: (foto, legenda) => enviar(legenda, foto),
                 enviarTexto: (texto) =>
                   sendInBubbles(texto, {
-                    enabled: orcamento_mega ? false : (agentConfig?.splitMessages ?? false),
+                    enabled: (orcamento_mega || rb_resposta || mega_codigo || rb_sem_estoque) ? false : (agentConfig?.splitMessages ?? false),
                     maxChars: agentConfig?.splitMaxChars ?? 600,
                     // O teto do turno vale para as bolhas: o que passa dele vai junto na última.
                     maxBubbles: Math.max(1, maxSendsPerTurn - seq),

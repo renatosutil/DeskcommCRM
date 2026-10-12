@@ -1,34 +1,47 @@
-PREPARADO, NÃO IMPLANTADO
-Base: v1.76.0 / 3101682cdc9d1448304f6c613349281b2db6857d.
-Guardas de elegibilidade: falha de leitura interrompe turno e adia evento.
-Fotos: código da Mega retornado por consulta, imagem verificada, Storage privado e envio nativo.
-Orçamento: orcamento_mega fornece código e quantidade; texto montado pelo código,
-sem custo/cotação/margem. Cada chamada da borda e beforeSend reconsulta a aprovação.
-Preço alterado, revogação, expiração ou indisponibilidade recusam o envio.
-A mensagem do orçamento não pode ser dividida nem modificada pela cadeia nativa.
-O fluxo deve ser testado com disclosure/assinatura e configurações reais.
-O guard de entrega exige RB_ATACADO_ENABLED=1 no app e worker, configuração privada
-600 montada em /opt/rb-atacado/config.json e API privada acessível. Nada disso
-foi ativado. Nenhuma ferramenta nova foi publicada na versão atual do agente.
-A defesa complementar contra preços em texto livre NÃO é prova completa contra
-todos os formatos monetários ou valores escritos por extenso. Exige revisão
-dos guardrails comerciais e testes adversariais antes de liberar.
-PENDENTE: typecheck completo, suíte completa, E2E, revisão de todas as rotas de
-envio/prospecção e publicação CI. Não implantar enquanto houver pendências.
-GitHub: branch só na cópia local da VPS; nenhum push/autenticação configurados.
-Nenhum segredo, .env ou estado WARP incluído.
-Interface atual permanece inalterada. Novos argumentos/guardas são alteração
-de código, não configuração disponível na interface. Aprovação ainda é utilitário
-interativo SSH preparado; não executar antes de configurar/validar a integração.
-Reversão: não implantar; versões de preparação anteriores preservadas.
+# RB Atacado — revisão privada sobre v1.76.0
+Estado medido: preparar e testar; implantação depende dos cinco workflows completos do mesmo commit.
+Não muda baseline, provedor/modelo, proxy, sessão WhatsApp, telefone permitido ou outras stacks.
 
-CI do fork: E2E e build/tamanho passam a aceitar PRs para rb-base-v1.76.0.
-Gatilhos de push em main, tags e publicação de imagens permanecem intactos.
-PR #1 é rascunho de validação; não fazer merge nem implantar.
+## Comportamento e superfície
+IA › Agentes › agente › Configuração: prompt, ferramentas e modelo; Histórico: versões.
+Salvar grava rascunho. Publicar torna a versão ativa pelo RPC nativo.
+As ferramentas rb_buscar_perfumes e rb_consultar_orcamento são selecionadas individualmente.
+Não entram nos pacotes gerais nem removem ferramentas nativas.
+Respostas RB são enums montados pelo servidor; texto livre deste agente não é enviado.
+Fotos levam nome, concentração, ml e apresentação verificados, sem preço pendente.
+Preços só são montados por ferramenta determinística com aprovação comercial válida.
+Sem aprovação, sem consulta confiável ou sem versão/ml confirmados: solicitar informação ou atendimento humano.
+Fora do contato privado: nenhum turno, sentimento ou derivação de mídia de IA.
+O controle privado é código/configuração protegida, sem editor próprio na interface.
 
-Compatibilidade CI do fork: CONFERENCIA_KIT_RELEASE=v1.76.0 somente no PR
-para rb-base-v1.76.0; tags v1.76.0 e v1.63.0 são buscadas do upstream apenas
-no runner. O commit da v1.76.0 é conferido. Nenhuma tag é enviada ao fork.
-Teste de atendimento assistido passa a exigir falha fechada em erro/ausência
-de consulta, preservando o controle positivo. Novo destino de Storage foi
-registrado com UUIDs validados, SKU decimal e alfabeto do Storage.
+## Segurança
+RB_ATACADO_ENABLED ausente/0 mantém o núcleo comum sem dependência nova.
+Com 1, configuração ausente, erro de leitura e elegibilidade desconhecida falham fechado.
+Configuração 600 contém escopo privado e autenticação da API; app tem arquivo legível apenas pelo UID de runtime.
+Conversão e formação do preço ficam em pricing.json 600 exclusivamente no coletor/CLI, fora do modelo e imagem.
+Arquivos de orçamento e aprovações 600, diretório 700. Aprovação interativa exige validade explícita.
+Fonte de disponibilidade: página principal da Mega; JSON-LD contraditório não prevalece.
+Quantidade em estoque não é conhecida. Resultado vazio dos anúncios verificados não prova todo o catálogo.
+Imagem e orçamento são revalidados antes do envio e retry, sem fragmentar ou adulterar o texto aprovado.
+
+## Publicação e reversão
+O CI oficial do fork valida unidade, invariantes, E2E, desempenho e imagens.
+rb-release publica arquivos OCI/checksums/identidades para a VPS AMD64 somente com todos os workflows aprovados.
+Baseline tem comparação byte a byte com o commit oficial v1.76.0.
+Não fazer merge da base fixada sobre main, não executar baseline/migrations, não construir imagem de produção na VPS.
+Override mantém serviços, IP do app, redes e volumes originais; acrescenta somente rede do coletor.
+Implantação gradual: API isolada, app, worker, scheduler. Demais serviços não são recriados.
+Reversão de código: usar somente os três Compose originais e imagens oficiais já presentes.
+Reversão do agente: criar rascunho copiando a versão anterior no Histórico e publicar pelo fluxo nativo.
+Backup privado anterior preservado fora do Git; nunca publicar conteúdo.
+
+## Sistema vivo e destino
+Destino: núcleo opt-in + infraestrutura privada de consulta; sem ativação, operação comum preservada.
+Entrada: turno nativo e mídia recebida; saída: MCP e send_message pelo ledger/before-send nativos.
+Registro: mensagem, execução e ferramentas nas telas nativas; aprovações ficam no ledger privado.
+Porta: IA › Agentes; conversa e timeline no Inbox. Aprovação: CLI interativo SSH, sem tela nesta revisão.
+Anti-morte: recusa explícita e passagem ao humano; não promete que já contatou alguém.
+Continuidade: handoff nativo e retomada nativa preservados.
+Laço de retorno: revogação, validade, preço alterado e estoque desabilitam a cotação antes de cada envio.
+Dívida declarada: CLI de aprovação não tem editor visual; não anunciar consulta/valor aprovado inexistente.
+Prova ainda exigida: testes do novo commit, imagens CI e protocolo implantado; WhatsApp real exige mensagem do aparelho.

@@ -1,3 +1,4 @@
+import { assinarFoto } from './provas';
 import { z } from "zod";
 import { lerConfig, configSchema } from "./cliente";
 import type { McpContext } from "../../types";
@@ -35,6 +36,9 @@ export async function prepararFotoMega(ctx:Context,input:{conversationId:string;
   const upload=await ctx.supabase.storage.from("whatsapp-media").upload(path,bytes,{contentType:mime,upsert:false,cacheControl:"60"});
   if(upload.error&&String((upload.error as {statusCode?:string|number}).statusCode)!=="409")return fail();
   const description=[product.nome,`Concentração: ${product.versao??"a confirmar"}${product.variante?` (${product.variante})`:""}. Volume: ${product.volume_ml===null?"a confirmar":`${product.volume_ml} ml`}.`,`Apresentação: ${product.apresentacao}.`,`Disponibilidade informada pela loja; quantidade não informada. Valor depende de consulta e aprovação da RB Atacado.`].join("\n");
-  return {ok:true as const,foto:{storagePath:path,mime},legenda:description};
+  const prova=assinarFoto({org:c.organization_id,contact:c.contact_id,agent:c.agent_id,
+   conversation:input.conversationId,job:ctx.sourceJobId!,code:input.codigo,path,
+   mime:mime as 'image/jpeg'|'image/png'|'image/webp',body:description,expira:Date.now()+120_000},c.authorization_token);
+  return {ok:true as const,foto:{storagePath:path,mime},legenda:description,prova};
  }catch{return fail();}
 }

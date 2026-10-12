@@ -1,3 +1,4 @@
+import socket
 """Private search bridge. No CRM credentials, orders, payments or raw prices."""
 import base64,hmac,json,os,re,stat,subprocess,threading,time,unicodedata,importlib.util
 from pathlib import Path
@@ -91,7 +92,16 @@ class Handler(BaseHTTPRequestHandler):
  def reply(self,status,result):
   body=json.dumps(result,ensure_ascii=False).encode()
   self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.send_header('Connection','close');self.end_headers();self.wfile.write(body);self.close_connection=True
- def do_GET(self):self.reply(404,{'error':'nao_disponivel'})
+ def do_GET(self):
+  if self.path!='/health':self.reply(404,{'error':'nao_disponivel'});return
+  try:
+   token_config()
+   import orcamento as o
+   o.politica_privada()
+   with socket.create_connection(('127.0.0.1',40000),timeout=2):pass
+   self.reply(200,{'healthy':True})
+  except Exception:self.reply(503,{'healthy':False})
+
  def do_POST(self):
   if self.path not in ('/v1/buscar','/v1/orcamento','/v1/foto'):return self.reply(404,{'error':'nao_disponivel'})
   try:
@@ -138,6 +148,9 @@ class Server(ThreadingHTTPServer):
 if __name__=='__main__':
  # Private Docker namespace only; no host-port publication permitted.
  os.umask(0o077)
- try:token_config()
+ try:
+  token_config()
+  import orcamento as o
+  o.politica_privada()
  except Exception:raise SystemExit('configuracao_indisponivel')
  Server(('0.0.0.0',40100),Handler).serve_forever()

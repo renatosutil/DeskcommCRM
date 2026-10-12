@@ -1,3 +1,4 @@
+from decimal import Decimal
 import copy,json,os,tempfile,unittest,uuid
 from datetime import datetime,timezone,timedelta
 from pathlib import Path
@@ -11,7 +12,7 @@ class Test(unittest.TestCase):
    self.calls+=1
    if not self.stock:raise a.o.Recusa('estoque_indisponivel_ou_nao_confirmado')
    if self.hook:self.hook()
-   u,t=a.o.calcular(self.cost,self.rate,q)
+   u,t=a.o.calcular(self.cost,self.rate,q,politica=(Decimal('1.02'),Decimal('1.20')))
    return {'formato':1,'estado':'pendente_de_aprovacao','produto':{'codigo':'123','nome':'Perfume teste EDT 100 ml','marca':'Marca','versao':'EDT','variante':None,'volume_ml':100,'apresentacao':p,'fonte':url,'imagem_url':'https://resource.megaeletronicos.com/teste.webp','imagem_validada':True,'disponibilidade':'disponivel'},'quantidade':q,'consultado_em_utc':now.isoformat(),'interno':{'custo_usd':self.cost,'cotacao_base':self.rate,'fonte_cotacao':'fonte_publica','preco_unitario_cents':u,'subtotal_cents':t},'aprovacao':None}
   self.consultar=consultar;self.ledger=a.Ledger(self.path,self.config,consultar,lambda:self.now)
   self.url='https://www.megaeletronicos.com/producto/123/perfume-teste'
@@ -22,7 +23,7 @@ class Test(unittest.TestCase):
   self.prepare()
   with self.assertRaises(Exception):self.ledger.validar('123',2)
  def test_unit_rounding_then_subtotal(self):
-  self.approve();v=self.ledger.validar('123',2);self.assertEqual(v['preco_unitario_cents'],7088);self.assertEqual(v['subtotal_cents'],14176)
+  self.approve();v=self.ledger.validar('123',2);self.assertEqual(v['preco_unitario_cents'],6120);self.assertEqual(v['subtotal_cents'],12240)
  def test_output_hides_cost_rate_markup(self):
   self.approve();v=json.dumps(self.ledger.validar('123',2));self.assertNotIn('custo',v);self.assertNotIn('cotacao',v);self.assertNotIn('interno',v);self.assertNotIn('percentual',v)
  def test_different_quantity_not_authorized(self):

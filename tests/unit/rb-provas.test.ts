@@ -112,3 +112,27 @@ describe("escopo Supabase da derivação antes de IA",()=>{
   expect(a.from).not.toHaveBeenCalled();expect(configFn).not.toHaveBeenCalled();
  });
 });
+
+
+describe('escolha de perfumes sem obrigação de compra',()=>{
+ it('oferece explicitamente recusar todas as opções',()=>{
+  expect(textoRespostaRb('escolher_opcao')).toMatch(/não quiser nenhuma/);
+  expect(textoRespostaRb('nenhuma_opcao')).toMatch(/não vou incluir essas opções/);
+ });
+ it('confirma versão, volume e quantidade somente como interesse',()=>{
+  const body=textoRespostaRb('confirmar_interesse');
+  expect(body).toMatch(/versão e volume/);
+  expect(body).toMatch(/quantidade informada/);
+  expect(body).toMatch(/não confirma compra/);
+  expect(body).not.toMatch(/R\$|Pix|reserva confirmada|compra confirmada/);
+ });
+ it.each(['escolher_opcao','nenhuma_opcao','confirmar_interesse'])(
+  'novo fluxo mantém a proteção no transporte: %s',async resposta=>{
+   const body=textoRespostaRb(resposta);
+   const message={...entrada,tipo:'text',body,metadata:{rb_resposta:resposta}};
+   await expect(conferirEntregaRb(message,deps)).resolves.toBeUndefined();
+   await expect(conferirEntregaRb({...message,ctx:{...ctx,contatoDoTurno:job}},deps)).rejects.toThrow();
+   await expect(conferirEntregaRb({...message,grupo:true},deps)).rejects.toThrow();
+   await expect(conferirEntregaRb({...message,body:body+' Compra confirmada.'},deps)).rejects.toThrow();
+  });
+});

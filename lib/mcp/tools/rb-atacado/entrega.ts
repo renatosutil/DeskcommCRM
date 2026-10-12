@@ -60,7 +60,7 @@ export async function conferirEntregaRb(input:Entrada,deps:Deps={
   const config=configSchema.parse(await deps.config());
   if(input.ctx.organizationId!==config.organization_id)return;
   if(input.grupo || input.ctx.contatoDoTurno!==config.contact_id)throw new EntregaRbRecusada();
-  if(input.actorId!==config.agent_id && input.actorId!=='agent-engine')return;
+  // Nesta organização de teste não há bypass por id de run/ator: somente saídas verificadas.
   const referencia=input.metadata?.rb_orcamento;
   if(referencia!==undefined){
    if(input.tipo!=='text')throw new EntregaRbRecusada();
@@ -73,7 +73,7 @@ export async function conferirEntregaRb(input:Entrada,deps:Deps={
   }else if(input.metadata?.rb_foto_mega!==undefined){
    const foto=conferirFoto(input.metadata.rb_foto_mega,config.authorization_token,deps.now?.()??Date.now());
    if(input.tipo!=='image'||foto.org!==input.ctx.organizationId||foto.contact!==input.ctx.contatoDoTurno||
-    foto.agent!==input.actorId||foto.conversation!==input.conversationId||
+    foto.agent!==config.agent_id||foto.conversation!==input.conversationId||
     foto.path!==input.mediaPath||foto.mime!==input.mediaMime||foto.body!==input.body)throw new EntregaRbRecusada();
   }else{
    // Nenhum texto livre sai deste agente; não depende de reconhecer moedas/números.

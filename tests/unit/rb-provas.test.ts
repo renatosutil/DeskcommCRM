@@ -56,8 +56,14 @@ describe('envio RB aceita somente saídas verificadas',()=>{
  it('modelo não pode adulterar resposta curta',async()=>{
   await expect(conferirEntregaRb({...entrada,tipo:'text',body:'Qual é o volume em ml? Custa 500.',metadata:{rb_resposta:'perguntar_ml'}},deps)).rejects.toThrow();
  });
- it('outro agente conserva seu fluxo nativo',async()=>{
-  await expect(conferirEntregaRb({...entrada,actorId:job,body:'Mensagem de outro agente'},deps)).resolves.toBeUndefined();
+ it('id de run diferente não permite texto livre',async()=>{
+  await expect(conferirEntregaRb({...entrada,actorId:job,body:'Mensagem livre',metadata:{}},deps)).rejects.toThrow();
+ });
+ it('actor genérico do motor aceita somente foto atestada do agente privado',async()=>{
+  await expect(conferirEntregaRb({...entrada,actorId:'agent-engine',metadata:{rb_foto_mega:assinarFoto(data,config.authorization_token)}},deps)).resolves.toBeUndefined();
+ });
+ it('outra organização conserva fluxo nativo',async()=>{
+  await expect(conferirEntregaRb({...entrada,ctx:{...ctx,organizationId:job},body:'Mensagem livre'},deps)).resolves.toBeUndefined();
  });
 });
 describe('escopo privado antes de qualquer IA',()=>{

@@ -528,7 +528,7 @@ export async function sendMessageHandler(
   const conferirRb = async () => {
     try {
       await conferirEntregaRb({
-        actorType:ctx.actor.type,actorId:ctx.actor.id,conversationId:input.conversation_id,
+        actorType:ctx.actor.type,actorId:ctx.agentOperation?.agentId ?? (ctx.actor.type==='ai_agent' ? ctx.actor.agent_id : undefined) ?? ctx.actor.id,conversationId:input.conversation_id,
         mediaPath:input.media_storage_path,mediaMime:input.media_mime,ctx:{organizationId:ctx.organization_id,
           contatoDoTurno:c.contact_id,supabase},
         body:input.body ?? '',tipo:input.type,grupo:c.is_group,

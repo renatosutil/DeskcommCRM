@@ -34,3 +34,5 @@ evidence
 # Testes Python do coletor são montados somente no runner de testes.
 integracoes/rb-atacado/coletor/test-*.py
 scripts/rb-verificar-ci.test.py
+
+scripts/rb-enviar-artefatos.test.py

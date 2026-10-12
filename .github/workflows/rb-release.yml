@@ -13,6 +13,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+      - name: Testar upload protegido sem acesso externo
+        run: python3 scripts/rb-enviar-artefatos.test.py
       - uses: docker/setup-buildx-action@v4
       - uses: docker/build-push-action@v7
         with:
@@ -21,6 +23,8 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
+          cache-from: type=gha,scope=rb-coletor
+          cache-to: type=gha,scope=rb-coletor,mode=max,ignore-error=true
           tags: deskcommcrm-rb-coletor:teste
       - name: Testes determinísticos contra o código da imagem, sem rede
         run: |
@@ -107,6 +111,8 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
+          cache-from: type=gha,scope=rb-${{ matrix.name }}
+          cache-to: type=gha,scope=rb-${{ matrix.name }},mode=max,ignore-error=true
           tags: deskcommcrm-rb-${{ matrix.name }}:${{ github.sha }}
           build-args: APP_VERSION=1.76.0
           labels: |
@@ -129,8 +135,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG_RB: ${{ needs.verificar.outputs.tag }}
           COMPONENTE: ${{ matrix.name }}
+          REVISAO: ${{ github.sha }}
         run: |
-          gh release upload "$TAG_RB" "/tmp/rb-$COMPONENTE.tar.gz" "/tmp/rb-$COMPONENTE.sha256" "/tmp/rb-$COMPONENTE.image-id"
+          python3 scripts/rb-enviar-artefatos.py
 
   disponibilizar:
     needs: [verificar, construir]

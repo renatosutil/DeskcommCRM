@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Consulta RB Atacado opt-in",
+    "subtitle": "Base v1.76.0; configuração e aprovação privadas"
+  },
+  "lanes": [
+    {
+      "id": "fluxo",
+      "label": "Fluxo opt-in"
+    }
+  ],
+  "mainPath": [
+    "inbox",
+    "gate",
+    "model",
+    "send",
+    "timeline"
+  ],
+  "nodes": [
+    {
+      "id": "inbox",
+      "lane": "fluxo",
+      "label": "Inbox / evento nativo"
+    },
+    {
+      "id": "gate",
+      "lane": "fluxo",
+      "label": "Contato permitido antes de IA"
+    },
+    {
+      "id": "model",
+      "lane": "fluxo",
+      "label": "Agente e ferramentas MCP"
+    },
+    {
+      "id": "api",
+      "lane": "fluxo",
+      "label": "API interna e VPN isolada"
+    },
+    {
+      "id": "owner",
+      "lane": "fluxo",
+      "label": "Operador / CLI de aprovação"
+    },
+    {
+      "id": "ledger",
+      "lane": "fluxo",
+      "label": "Aprovações privadas com validade"
+    },
+    {
+      "id": "send",
+      "lane": "fluxo",
+      "label": "Guardas e envio nativo"
+    },
+    {
+      "id": "timeline",
+      "lane": "fluxo",
+      "label": "Mensagem e atividade no Inbox"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "from": "inbox",
+      "to": "gate"
+    },
+    {
+      "id": "e1",
+      "from": "gate",
+      "to": "model"
+    },
+    {
+      "id": "e2",
+      "from": "model",
+      "to": "api"
+    },
+    {
+      "id": "e3",
+      "from": "api",
+      "to": "model"
+    },
+    {
+      "id": "e4",
+      "from": "owner",
+      "to": "ledger"
+    },
+    {
+      "id": "e5",
+      "from": "ledger",
+      "to": "api"
+    },
+    {
+      "id": "e6",
+      "from": "model",
+      "to": "send"
+    },
+    {
+      "id": "e7",
+      "from": "send",
+      "to": "api"
+    },
+    {
+      "id": "e8",
+      "from": "send",
+      "to": "timeline"
+    },
+    {
+      "id": "e9",
+      "from": "timeline",
+      "to": "owner"
+    }
+  ]
+}

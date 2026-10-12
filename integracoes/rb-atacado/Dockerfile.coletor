@@ -1,0 +1,9 @@
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /opt/coletor
+COPY integracoes/rb-atacado/coletor/mega_readonly.py integracoes/rb-atacado/coletor/orcamento.py integracoes/rb-atacado/coletor/estimativa.py integracoes/rb-atacado/coletor/consulta-vpn.py integracoes/rb-atacado/coletor/api-mega.py integracoes/rb-atacado/coletor/aprovacoes.py integracoes/rb-atacado/coletor/aprovar-orcamento.py ./
+RUN python3 -m py_compile *.py
+USER 1000:1000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:40100/health',timeout=3).read()"
+CMD ["python3","-B","/opt/coletor/api-mega.py"]

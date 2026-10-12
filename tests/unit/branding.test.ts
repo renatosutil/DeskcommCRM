@@ -208,6 +208,17 @@ type EntradaDeMarca = {
 };
 
 const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
+  "lib/mcp/tools/rb-atacado/cliente.ts": {
+    categoria:"INFRA",
+    motivo:"DNS do serviço privado de consulta na rede Docker exclusiva; prefixo técnico do projeto, não marca exibida ao cliente. Destino fixo evita URLs livres e SSRF.",
+    marcas:["deskcommcrm-mega-vpn","deskcommcrm-mega-vpn"],
+  },
+  "lib/mcp/tools/rb-atacado/foto.ts": {
+    categoria:"INFRA",
+    motivo:"DNS do mesmo serviço privado para imagem do SKU consultado; renomear exige atualização coordenada do Compose e do cliente, sem qualquer efeito no branding da interface.",
+    marcas:["deskcommcrm-mega-vpn"],
+  },
+
   // ─── PROTOCOLO — contrato de fio. Renomear quebra integração alheia. ───
   "lib/webhooks/assinatura.ts": {
     categoria: "PROTOCOLO",
@@ -815,6 +826,16 @@ type CategoriaDeHost =
 type EntradaDeHost = { categoria: CategoriaDeHost; motivo: string };
 
 const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
+  "megaeletronicos.com": {
+    categoria:"FORNECEDOR",motivo:"Domínio público do fornecedor autorizado para consultas determinísticas de perfumes; não é domínio da instalação nem destino livre escolhido pelo modelo.",
+  },
+  "www.megaeletronicos.com": {
+    categoria:"FORNECEDOR",motivo:"Host público dos anúncios da Mega Eletrônicos, consultados somente para preço e disponibilidade verificados; páginas não são enviadas ao modelo.",
+  },
+  "resource.megaeletronicos.com": {
+    categoria:"FORNECEDOR",motivo:"CDN das fotos originais do fornecedor autorizado; imagem limitada por MIME, assinatura e tamanho, copiada para Storage privado da conversa permitida.",
+  },
+
   "datamanager.googleapis.com": {
     categoria: "FORNECEDOR",
     motivo: "endpoint oficial da Google Data Manager API: recebe conversões e consulta o processamento na conta autorizada pela própria organização. O destino pertence ao fornecedor e não à instalação do CRM.",

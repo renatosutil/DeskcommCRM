@@ -1,3 +1,4 @@
+import { conferirEntregaRb, EntregaRbRecusada } from '@/lib/mcp/tools/rb-atacado/entrega';
 import { assertProspectingDelivery } from "@/lib/prospecting/guard";
 import { assertAgentOperationSupabase } from "@/lib/ai/agents/operation";
 import {
@@ -524,6 +525,23 @@ export async function sendMessageHandler(
     channel_sessions: (ChannelSessionRef & { status: string; metadata?: Record<string, unknown> | null; archived_at?: string | null }) | null;
   };
   const c = conv as unknown as Joined;
+  const conferirRb = async () => {
+    try {
+      await conferirEntregaRb({
+        actorType:ctx.actor.type,actorId:ctx.agentOperation?.agentId ?? (ctx.actor.type==='ai_agent' ? ctx.actor.agent_id : undefined) ?? ctx.actor.id,conversationId:input.conversation_id,
+        mediaPath:input.media_storage_path,mediaMime:input.media_mime,ctx:{organizationId:ctx.organization_id,
+          contatoDoTurno:c.contact_id,supabase},
+        body:input.body ?? '',tipo:input.type,grupo:c.is_group,
+        metadata:input.metadata,
+      });
+    } catch (error) {
+      if(error instanceof EntregaRbRecusada)
+        throw new ApiError(403,'forbidden',undefined,ctx.requestId,'Orçamento não confirmado para envio.');
+      throw error;
+    }
+  };
+  await conferirRb();
+
 
   if (c.contacts?.is_blocked) {
     throw new ApiError(
@@ -1003,6 +1021,7 @@ export async function sendMessageHandler(
     try {
       // O que separa mídia de texto é a presença de `media` no envelope — o
       const checkBoundary = async () => {
+        await conferirRb();
         await guardServiceEffect();
         await guardAgendaEffect();
         if (ctx.prospectingDelivery) await assertProspectingDelivery(supabase, ctx.prospectingDelivery);

@@ -30,3 +30,23 @@ scratchpad
 evidence
 .superpowers
 *.tsbuildinfo
+
+# Testes Python do coletor são montados somente no runner de testes.
+integracoes/rb-atacado/coletor/test-*.py
+scripts/rb-verificar-ci.test.py
+
+scripts/rb-enviar-artefatos.test.py
+
+# Metadados de CI e seus testes não pertencem ao runtime do worker.
+.github
+scripts/rb-ciclo-rapido.py
+scripts/rb-ciclo-rapido.test.py
+scripts/rb-enviar-artefatos.py
+scripts/rb-verificar-ci.py
+integracoes/rb-atacado/CICLO-CURTO.md
+
+# Planejamento e implantação CI não são código do runtime.
+scripts/rb-seletivo.py
+scripts/rb-seletivo.test.py
+scripts/rb-implantar-seletivo.py
+scripts/rb-implantar-seletivo.test.py

@@ -24,7 +24,7 @@ import { avisoDeEventoMorto, IA_QUE_NAO_RESPONDEU } from '@/lib/event-log/aviso-
 import { canalDesativado } from '@/lib/channels/desativado';
 import { TIPOS_DERIVAVEIS, DERIVACAO_TERMINADA } from '@/lib/messaging/media/derivable';
 import { haQuemAtendaASessao } from '@/lib/ai/agents/quem-atende-a-sessao';
-import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
+import { consultarElegibilidadeConfirmada as decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-confirmada';
 import { deveCederTurnoAoRetorno } from '@/lib/followup/ceder-turno-ao-retorno';
 import { ehOperante } from '@/lib/organizacao/operante';
 
@@ -417,6 +417,10 @@ async function processEvent(
       agora: new Date(),
       ttlMs: knobs.allowlistTtlMs ?? ALLOWLIST_TTL_MS_PADRAO,
     });
+    if (!elegib.consultaConfirmada) {
+      log.warn('drain: elegibilidade indisponível — evento adiado');
+      return 'adiar';
+    }
     if (!canAssist && elegib !== null && !elegib.permite) {
       log.info('drain: conversa não elegível para IA — turno pulado (sem gasto)', {
         event_id: event.id,
@@ -425,14 +429,9 @@ async function processEvent(
       });
       return 'processado';
     }
-  } catch (err) {
-    // Falha da consulta de elegibilidade NÃO derruba o drain e NÃO bloqueia o
-    // turno: um lead real pode estar esperando. Degrada para o fluxo antigo
-    // (enfileira) — o turno tem a segunda checagem.
-    log.warn('drain: checagem de elegibilidade falhou — seguindo para o turno', {
-      event_id: event.id,
-      error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
-    });
+  } catch {
+    log.warn('drain: elegibilidade indisponível — evento adiado');
+    return 'adiar';
   }
 
   // Mídia ainda virando texto: ESPERAR. Sem isto o turno era despachado no mesmo

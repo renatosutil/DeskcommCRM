@@ -9,6 +9,7 @@
  *  canal escolhido, pra automação externa com chave (`requiresRole: manager`,
  *  `apenasHumano` no catálogo — nunca alcançável pelo agente publicado).
  */
+import { rbBuscarPerfumes, rbConsultarOrcamento } from "./rb-atacado";
 import type { McpToolDefinition } from "../types";
 import { TOOL_CATALOG, VALID_TOOL_IDS } from "./catalog";
 import { crmSearchContacts, crmGetContact, crmProposeContactField } from "./contacts";
@@ -121,6 +122,8 @@ export const allTools: ReadonlyArray<McpToolDefinition> = [
   crmSaveOrgMemory,
   crmListContactOrders,
   crmSearchProducts,
+  rbBuscarPerfumes,
+  rbConsultarOrcamento,
   crmGetHonorariosContrato,
   crmListHonorariosParcelas,
   crmPrepararProposta,

@@ -57,6 +57,7 @@ export interface SendMessageInput {
   conversationId: string;
   body: string;
   rbOrcamento?: { codigo: string; quantidade: number };
+  rbEstimativa?: { codigo: string; quantidade?: number|null };
   rbResposta?: string;
   rbSemEstoque?: { perfume: string };
   rbFotoMega?: unknown;
@@ -98,7 +99,7 @@ export function corpoDoEnvio(
         : { type: 'text' as const }),
     // Foto sem legenda vai sem `body`: o schema do envio pede corpo não vazio.
     ...(input.body !== '' || !input.media ? { body: input.body } : {}),
-    metadata: { idempotency_key: idempotencyKey, ...(input.rbOrcamento ? { rb_orcamento: input.rbOrcamento } : {}), ...(input.rbResposta ? { rb_resposta: input.rbResposta } : {}), ...(input.rbFotoMega ? { rb_foto_mega: input.rbFotoMega } : {}), ...(input.rbSemEstoque ? { rb_sem_estoque: input.rbSemEstoque } : {}) },
+    metadata: { idempotency_key: idempotencyKey, ...(input.rbOrcamento ? { rb_orcamento: input.rbOrcamento } : {}), ...(input.rbEstimativa ? { rb_estimativa: input.rbEstimativa } : {}), ...(input.rbResposta ? { rb_resposta: input.rbResposta } : {}), ...(input.rbFotoMega ? { rb_foto_mega: input.rbFotoMega } : {}), ...(input.rbSemEstoque ? { rb_sem_estoque: input.rbSemEstoque } : {}) },
   };
 }
 

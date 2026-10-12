@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpToolDefinition } from "../types";
-import { consultarMega, consultarOrcamento, termoDePerfume } from "./rb-atacado/cliente";
+import { consultarMega, consultarEstimativa, termoDePerfume } from "./rb-atacado/cliente";
 
 const shape = {
   perfume: termoDePerfume.describe("Somente o nome do perfume e marca, nunca a mensagem do cliente ou dados pessoais. Concentração e ml apenas quando conhecidos."),
@@ -19,11 +19,11 @@ export const rbBuscarPerfumes: McpToolDefinition<typeof shape> = {
   handler: (input, ctx) => consultarMega(input, ctx),
 };
 
-const quoteShape = { codigo: z.string().regex(/^\d{1,12}$/), quantidade: z.number().int().min(1).max(1000) };
+const quoteShape = { codigo: z.string().regex(/^\d{1,12}$/), quantidade: z.number().int().min(1).max(1000).nullable().optional() };
 export const rbConsultarOrcamento: McpToolDefinition<typeof quoteShape> = {
   name: "rb_consultar_orcamento",
-  description: "Relê um orçamento aprovado pela RB Atacado para o produto exato e quantidade solicitada pelo cliente. Reconfere preço, cotação e disponibilidade, validade e revogação. Somente o preço final em reais é retornado, nunca custo, cotação ou percentual. Não aprova preço ou desconto e não confirma estoque quantitativo, compra, reserva, Pix, entrega ou pagamento. Recusa significa consulta ou aprovação comercial pendente; não invente valores ou reutilize preço de conversa anterior. Antes de enviar, a cadeia precisa reconferir a mesma aprovação.",
+  description: "Consulta preço estimativo calculado pelo servidor com preço verificado da Mega e cotação do dia. Informe código exato; quantidade opcional somente para subtotal, nunca é estoque. Sem quantidade retorna preço unitário e subtotal nulo. Não precisa de aprovação prévia do preço; fechamento depende de aprovação comercial. Não calcula no modelo, não revela custo, câmbio ou margem, não confirma compra, reserva, pagamento, quantidade em estoque ou entrega. Envie por estimativa_mega ou pela foto mega_codigo, que incorpora a estimativa verificada. Falha deixa preço pendente.",
   inputSchema: quoteShape, category: "read", requiresRole: "agent", requiresScope: "mcp:read",
-  redigirParaAuditoria: () => ({ consulta: "orcamento_aprovado", fornecedor: "mega" }),
-  handler: (input, ctx) => consultarOrcamento(input, ctx),
+  redigirParaAuditoria: () => ({ consulta: "orcamento_estimativo", fornecedor: "mega" }),
+  handler: (input, ctx) => consultarEstimativa(input, ctx),
 };

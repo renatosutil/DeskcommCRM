@@ -129,3 +129,54 @@ export async function consultarOrcamento(input: { codigo: string; quantidade: nu
     return v;
   } catch { return recusado("orcamento_nao_confirmado"); }
 }
+
+export const pedidoEstimativa=z.object({
+ codigo:z.string().regex(/^\d{1,12}$/),
+ quantidade:z.number().int().min(1).max(1000).nullable().optional(),
+}).strict();
+const cotacaoEstimada=z.object({
+ produto:z.object({
+  codigo:z.string().regex(/^\d{1,12}$/),nome:z.string().min(1).max(300),marca:z.string().max(100).nullable(),
+  versao:z.enum(["EDP","EDT","Parfum","Elixir","Extrait de Parfum","EDC"]).nullable(),
+  variante:z.literal("Eau Forte").nullable(),volume_ml:z.number().int().positive().max(5000).nullable(),
+  apresentacao:z.enum(["frasco","kit","tester","refil","ambigua","não confirmada"]),imagem_url:httpsMega.nullable(),
+ }),
+ quantidade:z.number().int().min(1).max(1000).nullable(),moeda:z.literal("BRL"),situacao:z.literal("estimativa"),
+ preco_unitario_cents:z.number().int().positive().max(1_000_000_000),
+ subtotal_cents:z.number().int().positive().max(1_000_000_000).nullable(),
+ quantidade_em_estoque:z.literal("nao_informada"),disponibilidade_na_consulta:z.literal("disponivel"),
+ compra_reserva_pagamento_confirmados:z.literal(false),fechamento_pendente_aprovacao:z.literal(true),
+ consultado_em_utc:z.iso.datetime({offset:true}),valido_ate_utc:z.iso.datetime({offset:true}),
+});
+export type EstimativaRb=z.infer<typeof cotacaoEstimada>;
+export async function consultarEstimativa(input:{codigo:string;quantidade?:number|null},
+ ctx:Pick<McpContext,'organizationId'|'contatoDoTurno'|'supabase'>,
+ deps:Dependencias={config:lerConfig,fetch:globalThis.fetch,now:Date.now}){
+ try{
+  const c=configSchema.parse(await deps.config());
+  if(ctx.organizationId!==c.organization_id||ctx.contatoDoTurno!==c.contact_id)return recusado("fora_do_teste");
+  const pedido=pedidoEstimativa.safeParse(input);if(!pedido.success)return recusado("identificacao_invalida");
+  const {data:contato,error}=await ctx.supabase.from("contacts").select("id,kind,is_blocked,is_anonymized,is_personal")
+   .eq("organization_id",ctx.organizationId).eq("id",c.contact_id).maybeSingle();
+  if(error||!contato||contato.id!==c.contact_id||contato.kind==="whatsapp_group"||
+   contato.is_blocked!==false||contato.is_anonymized!==false||contato.is_personal!==false)return recusado("contato_indisponivel");
+  const quantidade=pedido.data.quantidade??null;
+  const r=await deps.fetch("http://deskcommcrm-mega-vpn:40100/v1/estimativa",{
+   method:"POST",redirect:"error",signal:AbortSignal.timeout(120_000),
+   headers:{"Content-Type":"application/json",Authorization:`Bearer ${c.authorization_token}`},
+   body:JSON.stringify({codigo:pedido.data.codigo,quantidade}),
+  });
+  if(!r.ok||!r.body)return recusado("estimativa_nao_confirmada");
+  const reader=r.body.getReader();let size=0;const chunks:Uint8Array[]=[];
+  try{while(true){const x=await reader.read();if(x.done)break;size+=x.value.byteLength;
+   if(size>16_384){await reader.cancel();return recusado("estimativa_nao_confirmada");}chunks.push(x.value);}}
+  finally{reader.releaseLock();}
+  const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+  const v=cotacaoEstimada.parse(JSON.parse(new TextDecoder().decode(bytes)));
+  const age=deps.now()-Date.parse(v.consultado_em_utc),valid=Date.parse(v.valido_ate_utc)-deps.now();
+  if(v.produto.codigo!==pedido.data.codigo||v.quantidade!==quantidade||age < -60_000||age>120_000||valid<=0||valid>180_000||
+   (quantidade===null?v.subtotal_cents!==null:v.subtotal_cents!==v.preco_unitario_cents*quantidade))
+   return recusado("estimativa_nao_confirmada");
+  return v;
+ }catch{return recusado("estimativa_nao_confirmada");}
+}

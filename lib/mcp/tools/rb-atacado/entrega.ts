@@ -1,7 +1,7 @@
 import { textoRespostaRb } from './respostas';
 import { conferirFoto } from './provas';
 import { z } from 'zod';
-import { consultarOrcamento, consultarMega, termoDePerfume, lerConfig, configSchema } from './cliente';
+import { consultarOrcamento, consultarEstimativa, pedidoEstimativa, type EstimativaRb, consultarMega, termoDePerfume, lerConfig, configSchema } from './cliente';
 import type { McpContext } from '../../types';
 
 export const referenciaRb = z.object({
@@ -38,6 +38,25 @@ export async function prepararOrcamentoRb(ctx:Contexto,input:unknown,
  if (!('situacao' in cotacao) || cotacao.situacao !== 'aprovado') throw new EntregaRbRecusada();
  return { referencia, body:textoOrcamentoRb(cotacao), cotacao };
 }
+
+export const AVISO_ESTIMATIVA_RB='Preços refletem a cotação consultada no momento. Pedido sujeito à aprovação da RB Atacado; preço e disponibilidade podem mudar até o fechamento. Qualquer alteração exige aviso e sua confirmação antes do fechamento.';
+export function textoEstimativaRb(c:EstimativaRb):string{
+ const p=c.produto;
+ return [
+  p.nome+' — '+(p.versao??'concentração a confirmar')+(p.variante?' / '+p.variante:'')+
+   ', '+(p.volume_ml===null?'volume a confirmar':p.volume_ml+' ml')+', '+p.apresentacao+'.',
+  'Preço estimado: '+reais(c.preco_unitario_cents)+' por unidade.',
+  ...(c.quantidade===null?[]:['Quantidade desejada: '+c.quantidade+'. Subtotal estimado: '+reais(c.subtotal_cents!)+'.']),
+  'A loja informa disponibilidade; quantidade em estoque não informada.',
+  AVISO_ESTIMATIVA_RB,
+  ...(c.quantidade===null?[]:['Confirma este item e esta quantidade somente para o orçamento?']),
+ ].join('\n');
+}
+export async function prepararEstimativaRb(ctx:Contexto,input:unknown,consultar=consultarEstimativa){
+ const referencia=pedidoEstimativa.parse(input),cotacao=await consultar(referencia,ctx);
+ if(!('situacao' in cotacao)||cotacao.situacao!=='estimativa')throw new EntregaRbRecusada();
+ return {referencia,body:textoEstimativaRb(cotacao),cotacao};
+}
 export const pesquisaSemEstoque=z.object({perfume:termoDePerfume}).strict();
 export const TEXTO_SEM_ESTOQUE='Essa pesquisa está sem estoque nos anúncios verificados da Mega Eletrônicos. Posso mostrar outras versões?';
 export async function prepararSemEstoqueRb(ctx:Contexto,input:unknown,consultar=consultarMega){
@@ -50,7 +69,7 @@ export async function prepararSemEstoqueRb(ctx:Contexto,input:unknown,consultar=
 type Entrada = { actorType:string; actorId:string; ctx:Contexto; body:string; tipo:string;
  conversationId?:string; mediaPath?:string; mediaMime?:string;
  grupo:boolean; metadata?:Record<string,unknown> };
-type Deps={enabled:boolean;config:typeof lerConfig;consultar:typeof consultarOrcamento;now?:()=>number;buscar?:typeof consultarMega};
+type Deps={enabled:boolean;config:typeof lerConfig;consultar:typeof consultarOrcamento;now?:()=>number;buscar?:typeof consultarMega;estimar?:typeof consultarEstimativa};
 /** Guarda opt-in privada, reexecutada antes de CADA tentativa do transporte. */
 export async function conferirEntregaRb(input:Entrada,deps:Deps={
  enabled:process.env.RB_ATACADO_ENABLED==='1',config:lerConfig,consultar:consultarOrcamento
@@ -62,7 +81,11 @@ export async function conferirEntregaRb(input:Entrada,deps:Deps={
   if(input.grupo || input.ctx.contatoDoTurno!==config.contact_id)throw new EntregaRbRecusada();
   // Nesta organização de teste não há bypass por id de run/ator: somente saídas verificadas.
   const referencia=input.metadata?.rb_orcamento;
-  if(referencia!==undefined){
+  if(input.metadata?.rb_estimativa!==undefined){
+   if(input.tipo!=='text')throw new EntregaRbRecusada();
+   const atual=await prepararEstimativaRb(input.ctx,input.metadata.rb_estimativa,deps.estimar??consultarEstimativa);
+   if(input.body!==atual.body)throw new EntregaRbRecusada();
+  }else if(referencia!==undefined){
    if(input.tipo!=='text')throw new EntregaRbRecusada();
    const atual=await prepararOrcamentoRb(input.ctx,referencia,deps.consultar);
    if(input.body!==atual.body)throw new EntregaRbRecusada();
@@ -75,6 +98,11 @@ export async function conferirEntregaRb(input:Entrada,deps:Deps={
    if(input.tipo!=='image'||foto.org!==input.ctx.organizationId||foto.contact!==input.ctx.contatoDoTurno||
     foto.agent!==config.agent_id||foto.conversation!==input.conversationId||
     foto.path!==input.mediaPath||foto.mime!==input.mediaMime||foto.body!==input.body)throw new EntregaRbRecusada();
+   if(foto.estimativa){
+    const atual=await prepararEstimativaRb(input.ctx,{codigo:foto.code,quantidade:null},deps.estimar??consultarEstimativa);
+    if(atual.cotacao.preco_unitario_cents!==foto.estimativa.preco_unitario_cents||atual.body!==foto.body)throw new EntregaRbRecusada();
+   }
+
   }else{
    // Nenhum texto livre sai deste agente; não depende de reconhecer moedas/números.
    if(input.tipo!=='text'||input.body!==textoRespostaRb(input.metadata?.rb_resposta))

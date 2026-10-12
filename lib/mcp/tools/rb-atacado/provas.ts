@@ -5,6 +5,7 @@ const fotoSchema=z.object({
  code:z.string().regex(/^\d{1,12}$/),path:z.string().max(250),
  mime:z.enum(['image/jpeg','image/png','image/webp']),body:z.string().min(1).max(1024),
  expira:z.number().int().positive(),
+ estimativa:z.object({preco_unitario_cents:z.number().int().positive().max(1_000_000_000)}).strict().optional(),
 }).strict();
 export type FotoAtestada=z.infer<typeof fotoSchema>;
 function assinatura(data:FotoAtestada,key:string):string {

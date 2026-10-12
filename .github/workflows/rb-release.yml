@@ -27,6 +27,7 @@ jobs:
           docker run --rm --network none --mount "type=bind,src=$PWD/integracoes/rb-atacado/coletor/test-aprovacoes.py,dst=/opt/coletor/test-aprovacoes.py,readonly" --entrypoint python3 deskcommcrm-rb-coletor:teste -B /opt/coletor/test-aprovacoes.py
           docker run --rm --network none --mount "type=bind,src=$PWD/integracoes/rb-atacado/coletor/test-api-mega.py,dst=/opt/coletor/test-api-mega.py,readonly" --entrypoint python3 deskcommcrm-rb-coletor:teste -B /opt/coletor/test-api-mega.py
           docker run --rm --network none --mount "type=bind,src=$PWD/integracoes/rb-atacado/coletor/test-politica.py,dst=/opt/coletor/test-politica.py,readonly" --entrypoint python3 deskcommcrm-rb-coletor:teste -B /opt/coletor/test-politica.py
+          docker run --rm --network none --mount "type=bind,src=$PWD/integracoes/rb-atacado/coletor/test-estimativa.py,dst=/opt/coletor/test-estimativa.py,readonly" --entrypoint python3 deskcommcrm-rb-coletor:teste -B /opt/coletor/test-estimativa.py
 
   verificar:
     if: github.event_name == 'push'

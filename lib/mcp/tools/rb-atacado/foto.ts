@@ -1,3 +1,5 @@
+import {textoEstimativaRb} from './entrega';
+import {consultarEstimativa,type EstimativaRb} from './cliente';
 import { assinarFoto } from './provas';
 import { z } from "zod";
 import { lerConfig, configSchema } from "./cliente";
@@ -7,7 +9,7 @@ type Context = Pick<McpContext, "organizationId" | "contatoDoTurno" | "sourceJob
 const sku=z.string().regex(/^\d{1,12}$/);
 const metadata=z.object({codigo:sku,nome:z.string().min(1).max(300),marca:z.string().max(100).nullable(),versao:z.enum(["EDP","EDT","Parfum","Elixir","Extrait de Parfum","EDC"]).nullable(),variante:z.literal("Eau Forte").nullable(),volume_ml:z.number().int().positive().max(5000).nullable(),apresentacao:z.enum(["kit","tester","refil","ambigua","não confirmada"])});
 const fail=()=>({ok:false as const,code:"foto_nao_confirmada",message:"Não consegui confirmar a foto desta opção. Não envie outra imagem por aproximação."});
-interface Deps {config:typeof lerConfig;fetch:typeof globalThis.fetch}
+interface Deps {config:typeof lerConfig;fetch:typeof globalThis.fetch;estimar?:typeof consultarEstimativa}
 /** Called by the native send chain with trusted context, never as a free-form media tool. */
 export async function prepararFotoMega(ctx:Context,input:{conversationId:string;codigo:string},deps:Deps={config:lerConfig,fetch:globalThis.fetch}) {
  try {
@@ -35,10 +37,18 @@ export async function prepararFotoMega(ctx:Context,input:{conversationId:string;
   const path=`${ctx.organizationId}/${input.conversationId}/mega-${input.codigo}-${ctx.sourceJobId}.${extension}`;
   const upload=await ctx.supabase.storage.from("whatsapp-media").upload(path,bytes,{contentType:mime,upsert:false,cacheControl:"60"});
   if(upload.error&&String((upload.error as {statusCode?:string|number}).statusCode)!=="409")return fail();
-  const description=[product.nome,`Concentração: ${product.versao??"a confirmar"}${product.variante?` (${product.variante})`:""}. Volume: ${product.volume_ml===null?"a confirmar":`${product.volume_ml} ml`}.`,`Apresentação: ${product.apresentacao}.`,`Disponibilidade informada pela loja; quantidade não informada. Valor depende de consulta e aprovação da RB Atacado.`].join("\n");
+  let description=[product.nome,`Concentração: ${product.versao??"a confirmar"}${product.variante?` (${product.variante})`:""}. Volume: ${product.volume_ml===null?"a confirmar":`${product.volume_ml} ml`}.`,`Apresentação: ${product.apresentacao}.`,`Disponibilidade informada pela loja; quantidade não informada. Valor pendente de verificação do preço e da cotação.`].join("\n");
+  let estimativa:EstimativaRb|null=null;
+  const valor=await (deps.estimar??consultarEstimativa)({codigo:input.codigo,quantidade:null},ctx);
+  if('situacao' in valor&&valor.situacao==='estimativa'){
+   if(['codigo','nome','marca','versao','variante','volume_ml','apresentacao'].some(k=>
+    product[k as keyof typeof product]!==valor.produto[k as keyof typeof valor.produto]))return fail();
+   estimativa=valor;description=textoEstimativaRb(valor);
+  }
   const prova=assinarFoto({org:c.organization_id,contact:c.contact_id,agent:c.agent_id,
    conversation:input.conversationId,job:ctx.sourceJobId!,code:input.codigo,path,
-   mime:mime as 'image/jpeg'|'image/png'|'image/webp',body:description,expira:Date.now()+120_000},c.authorization_token);
-  return {ok:true as const,foto:{storagePath:path,mime},legenda:description,prova};
+   mime:mime as 'image/jpeg'|'image/png'|'image/webp',body:description,expira:Date.now()+120_000,
+   ...(estimativa?{estimativa:{preco_unitario_cents:estimativa.preco_unitario_cents}}:{})},c.authorization_token);
+  return {ok:true as const,foto:{storagePath:path,mime},legenda:description,prova,estimativa};
  }catch{return fail();}
 }

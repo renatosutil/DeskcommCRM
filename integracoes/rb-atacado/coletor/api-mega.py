@@ -3,6 +3,7 @@ import socket
 import base64,hmac,json,os,re,stat,subprocess,threading,time,unicodedata,importlib.util
 from pathlib import Path
 import aprovacoes as approvals
+import estimativa as estimates
 import mega_readonly as mega
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit
@@ -68,6 +69,15 @@ def orcamento(code,quantity):
  ledger=approvals.Ledger('/opt/rb-atacado/aprovacoes',config,consultar)
  return ledger.validar(code,quantity)
 
+def estimativa(code,quantity=None):
+ cached=OPTIONS.get(code)
+ if not cached:raise ValueError('estimativa_requer_pesquisa')
+ old=cached[1]
+ result=estimates.preparar(old['fonte'],quantity,fetch=transporte())
+ if any(result['produto'].get(k)!=old.get(k) for k in ('codigo','nome','marca','versao','variante','volume_ml','apresentacao','imagem_url')):
+  raise ValueError('produto_mudou_pesquise_novamente')
+ return result
+
 def foto(code):
  cached=OPTIONS.get(code)
  if not cached or time.monotonic()-cached[0]>120:raise ValueError('foto_requer_consulta_recente')
@@ -103,7 +113,7 @@ class Handler(BaseHTTPRequestHandler):
   except Exception:self.reply(503,{'healthy':False})
 
  def do_POST(self):
-  if self.path not in ('/v1/buscar','/v1/orcamento','/v1/foto'):return self.reply(404,{'error':'nao_disponivel'})
+  if self.path not in ('/v1/buscar','/v1/orcamento','/v1/foto','/v1/estimativa'):return self.reply(404,{'error':'nao_disponivel'})
   try:
    authorization=self.headers.get('Authorization','')
    if len(self.headers.get_all('Authorization',[]))!=1 or not hmac.compare_digest(authorization,'Bearer '+token_config()):return self.reply(403,{'error':'nao_autorizado'})
@@ -114,6 +124,8 @@ class Handler(BaseHTTPRequestHandler):
    if not isinstance(data,dict):return self.reply(400,{'error':'consulta_invalida'})
    if self.path=='/v1/buscar':
     valid=set(data)=={'perfume'} and termo_valido(data['perfume'])
+   elif self.path=='/v1/estimativa':
+    valid=set(data)=={'codigo','quantidade'} and isinstance(data['codigo'],str) and bool(re.fullmatch(r'\d{1,12}',data['codigo'])) and (data['quantidade'] is None or (type(data['quantidade']) is int and 1<=data['quantidade']<=1000))
    elif self.path=='/v1/orcamento':
     valid=set(data)=={'codigo','quantidade'} and isinstance(data['codigo'],str) and bool(re.fullmatch(r'\d{1,12}',data['codigo'])) and type(data['quantidade']) is int and 1<=data['quantidade']<=1000
    else:
@@ -123,6 +135,7 @@ class Handler(BaseHTTPRequestHandler):
   if not LOCK.acquire(blocking=False):return self.reply(429,{'error':'consulta_ocupada'})
   try:
    if self.path=='/v1/buscar':self.reply(200,buscar(data['perfume']))
+   elif self.path=='/v1/estimativa':self.reply(200,estimativa(data['codigo'],data['quantidade']))
    elif self.path=='/v1/orcamento':self.reply(200,orcamento(data['codigo'],data['quantidade']))
    else:
     body,mime=foto(data['codigo'])

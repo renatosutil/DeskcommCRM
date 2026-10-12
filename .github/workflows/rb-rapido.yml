@@ -20,9 +20,9 @@ jobs:
       - name: Planejar testes sem build nem deploy
         id: plano
         run: python3 -B scripts/rb-ciclo-rapido.py --github-output
-      - name: Preparar Node somente quando necessário
+      - uses: ./.github/actions/preparar-node
+        name: Preparar Node somente quando necessário
         if: steps.plano.outputs.needs_node == 'true'
-        uses: ./.github/actions/preparar-node
         timeout-minutes: 5
       - name: Testes dos arquivos afetados e desdobramentos
         run: python3 -B scripts/rb-ciclo-rapido.py --executar

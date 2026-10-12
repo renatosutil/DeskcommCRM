@@ -16,10 +16,9 @@
 #   - o que o `.dockerignore` exclui: nem entra no contexto de build, então
 #     nenhum Dockerfile o enxerga. A lista abaixo repete o `.dockerignore`, e
 #     tests/unit/pr-mexe-na-imagem.test.ts reprova se as duas divergirem.
-#   - `.github/**/*.{yml,yaml,md}`, menos o próprio publish-image.yml: entra no
-#     contexto (o worker o carrega inerte), mas nenhum passo de build lê YAML
-#     nem markdown. `.ts` sob `.github/` NÃO está aqui — o `next build` o
-#     typechecaria.
+#   - `.github/` está excluído do contexto no fork RB. O próprio
+#     publish-image.yml continua forçando o gate das imagens para medir a
+#     cadeia de entrega, mesmo sem alterar arquivos do runtime.
 #   - `*.md` na RAIZ: inerte pela mesma razão; nenhum módulo importa markdown da
 #     raiz (o CHANGELOG que a tela mostra chega do agente do host, não do disco
 #     da imagem). Markdown em subdiretório fica de fora da regra: há código que
@@ -35,14 +34,19 @@ while IFS= read -r caminho || [ -n "$caminho" ]; do
     # ↓ espelho do .dockerignore — os diretórios. Padrão de .dockerignore sem
     # barra casa só na RAIZ do contexto, e `*` de `case` atravessa `/`: por
     # isso todo padrão aqui começa pelo nome do diretório da raiz.
-    evidence | .superpowers) ;;
+    evidence | .superpowers | .github) ;;
     node_modules/* | .next/* | .git/* | test-results/* | tests/* | .lina/* \
       | docs/* | tasks/* | scratchpad/* | .vercel/* | .claude/* | .agents/* \
       | .agent/* | .codex/* | .cursor/* | .opencode/* | .specs/* | .changes/* \
       | evidence/* | .superpowers/*) ;;
-    .github/*.yml | .github/*.yaml | .github/*.md) ;;
+    .github/*) ;;
     # Testes Python excluídos explicitamente do contexto das imagens.
-    integracoes/rb-atacado/coletor/test-*.py | scripts/rb-verificar-ci.test.py) ;;
+    integracoes/rb-atacado/coletor/test-*.py | scripts/rb-verificar-ci.test.py \
+      | scripts/rb-enviar-artefatos.test.py | scripts/rb-ciclo-rapido.py \
+      | scripts/rb-ciclo-rapido.test.py | scripts/rb-enviar-artefatos.py \
+      | scripts/rb-verificar-ci.py | integracoes/rb-atacado/CICLO-CURTO.md \
+      | scripts/rb-seletivo.py | scripts/rb-seletivo.test.py \
+      | scripts/rb-implantar-seletivo.py | scripts/rb-implantar-seletivo.test.py) ;;
     # Daqui para baixo, só arquivo da RAIZ: qualquer outro caminho com `/` alcança.
     */*) echo sim; exit 0 ;;
     # ↓ espelho do .dockerignore — os arquivos da raiz.

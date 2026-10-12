@@ -24,9 +24,9 @@ class FastTest(unittest.TestCase):
         p=m.planejar(['lib/unknown.ts'])
         self.assertIn(['pnpm','test:unit'],p['commands']);self.assertTrue(p['requires_expanded_review'])
     def test_database_needs_expanded_review(self):self.assertTrue(m.planejar(['supabase/baseline.sql'])['requires_expanded_review'])
-    def test_pipeline_only_fixture_tests(self):
+    def test_pipeline_includes_structural_contracts(self):
         p=m.planejar(['.github/workflows/rb-rapido.yml'])
-        self.assertFalse(p['needs_node']);self.assertEqual(len(p['commands']),len(m.PIPELINE_TESTS))
+        self.assertTrue(p['needs_node']);self.assertEqual(len(p['commands']),len(m.PIPELINE_TESTS)+2)
     def test_never_publishes(self):
         for paths in [[],['lib/unknown.ts'],['edge/crm/send-message.ts']]:self.assertFalse(m.planejar(paths)['publication_authorized'])
     def test_no_build_up_or_external_connection_commands(self):

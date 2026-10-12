@@ -2,6 +2,7 @@
 import argparse,json,os,pathlib,subprocess
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 PIPELINE_TESTS=['scripts/rb-ciclo-rapido.test.py','scripts/rb-enviar-artefatos.test.py','scripts/rb-verificar-ci.test.py','scripts/rb-seletivo.test.py','scripts/rb-implantar-seletivo.test.py']
+CI_TESTS=['tests/unit/preambulo-do-ci-nao-come-o-relogio.test.ts','tests/unit/pr-mexe-na-imagem.test.ts','tests/unit/gatilho-dos-jobs-de-entrega.test.ts','tests/unit/workflows-tem-permissions.test.ts','tests/unit/concorrencia-so-nos-jobs-pesados.test.ts']
 COLLECTOR_TESTS=['integracoes/rb-atacado/coletor/test-'+n+'.py' for n in ('aprovacoes','api-mega','politica','estimativa')]
 RB_TESTS=['tests/unit/rb-'+n+'.test.ts' for n in ('elegibilidade-confirmada','entrega','estimativa','estoque-verificado','foto','mega','orcamento','provas','publicacao-verificada','sentimento')]
 SEND_TESTS=['tests/unit/'+n+'.test.ts' for n in ('before-send-chain-shape','opt-out-deteccao','pre-go-live-novos-canais','branding')]
@@ -11,7 +12,9 @@ def planejar(paths):
     for p in paths:
         if p.startswith(('docs/','.changes/')) or p.endswith('.md'):continue
         if p.startswith(('scripts/rb-ciclo-rapido','scripts/rb-enviar-artefatos','scripts/rb-verificar-ci','scripts/rb-seletivo','scripts/rb-implantar-seletivo')) or p in ('.github/workflows/rb-rapido.yml','.github/workflows/rb-release.yml'):
-            python.update(PIPELINE_TESTS)
+            python.update(PIPELINE_TESTS);ts.update(CI_TESTS)
+        elif p=='scripts/pr-mexe-na-imagem.sh' or p in CI_TESTS:
+            ts.update(CI_TESTS)
         elif p.startswith('integracoes/rb-atacado/coletor/'):
             python.update(COLLECTOR_TESTS)
         elif p.startswith(('lib/mcp/tools/rb-atacado','tests/unit/rb-')) and p.endswith(('.ts','.tsx')):

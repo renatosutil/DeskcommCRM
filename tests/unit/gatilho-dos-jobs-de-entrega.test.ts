@@ -64,6 +64,27 @@ const DIR = join(process.cwd(), ".github/workflows");
  * que desliga um job de entrega fica visível em code review.
  */
 const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string }> = {
+  "rb-release.yml::coletor-em-pr": {
+    condicao: "github.event_name == 'pull_request'",
+    efeito: "Prova os testes determinísticos contra a imagem do coletor antes de autorizar publicação da revisão privada.",
+  },
+  "rb-release.yml::verificar": {
+    condicao: "github.event_name == 'push'",
+    efeito: "Exige os cinco workflows completos do mesmo commit e baseline oficial antes de criar artefatos para a VPS.",
+  },
+  "rb-release.yml::criar-release": {
+    condicao: null,
+    efeito: "Cria apenas o rascunho da pré-release privada depois da verificação, sem alterar tags oficiais.",
+  },
+  "rb-release.yml::construir": {
+    condicao: null,
+    efeito: "Produz as quatro imagens OCI e suas identidades no CI; sem ele a VPS não recebe esta revisão.",
+  },
+  "rb-release.yml::disponibilizar": {
+    condicao: null,
+    efeito: "Só torna a pré-release acessível depois de todos os arquivos e checksums existirem.",
+  },
+
   // --- a cadeia que leva o conserto até a VPS ---------------------------------
   "release.yml::abrir-pr-de-release": {
     condicao: "github.event_name == 'workflow_dispatch'",

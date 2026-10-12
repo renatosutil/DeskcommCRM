@@ -41,6 +41,8 @@ while IFS= read -r caminho || [ -n "$caminho" ]; do
       | .agent/* | .codex/* | .cursor/* | .opencode/* | .specs/* | .changes/* \
       | evidence/* | .superpowers/*) ;;
     .github/*.yml | .github/*.yaml | .github/*.md) ;;
+    # Testes Python excluídos explicitamente do contexto das imagens.
+    integracoes/rb-atacado/coletor/test-*.py | scripts/rb-verificar-ci.test.py) ;;
     # Daqui para baixo, só arquivo da RAIZ: qualquer outro caminho com `/` alcança.
     */*) echo sim; exit 0 ;;
     # ↓ espelho do .dockerignore — os arquivos da raiz.

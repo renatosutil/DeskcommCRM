@@ -2,7 +2,7 @@ import {it,expect,vi} from 'vitest';
 import type {McpContext} from '../../lib/mcp/types';
 import {prepararSemEstoqueRb,TEXTO_SEM_ESTOQUE} from '../../lib/mcp/tools/rb-atacado/entrega';
 const ctx={organizationId:'fixture-org',contatoDoTurno:'fixture-contact',supabase:{} as McpContext['supabase']};
-const vazio={status:'sem_estoque_nos_anuncios_verificados' as const,opcoes:[],cobertura_integral_catalogo:false as const,detalhes_consultados_integralmente:true};
+const vazio={mensagem:'fixture pública',status:'sem_estoque_nos_anuncios_verificados' as const,opcoes:[],cobertura_integral_catalogo:false as const,detalhes_consultados_integralmente:true};
 it('informa falta somente nos anúncios verificados',async()=>{
  expect(await prepararSemEstoqueRb(ctx,{perfume:'Sauvage EDP 100'},vi.fn(async()=>vazio))).toEqual({referencia:{perfume:'Sauvage EDP 100'},body:TEXTO_SEM_ESTOQUE});
 });

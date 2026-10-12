@@ -42,9 +42,9 @@ describe.sequential("RB Mega: consulta restrita sem precos", () => {
 });
 
 describe("pacote próprio de perfumes",()=>{
- it("as duas capacidades entram somente no pacote próprio",async()=>{
+ test("as duas capacidades entram somente no pacote próprio",async()=>{
   const {TOOLS_RB_ATACADO}=await import("../../lib/mcp/tools/catalogo/rb-atacado");
-  expect(TOOLS_RB_ATACADO).toHaveLength(2);
-  for(const tool of TOOLS_RB_ATACADO)expect(tool.pacotes).toEqual(["perfumes_rb"]);
+  assert.equal(TOOLS_RB_ATACADO.length,2);
+  for(const tool of TOOLS_RB_ATACADO)assert.deepEqual(tool.pacotes,["perfumes_rb"]);
  });
 });
